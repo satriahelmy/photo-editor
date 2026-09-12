@@ -1178,6 +1178,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 14px;
     min-height: 45px;
     padding: 0 20px;
 }
@@ -1186,7 +1187,7 @@
     display: flex;
     flex: 1;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
     padding: 0;
     border: 0;
     background: transparent;
@@ -1202,15 +1203,20 @@
 }
 
 .adjustment-section-chevron {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    margin: -4px 3px 0 12px;
+    border-right: 1px solid currentcolor;
+    border-bottom: 1px solid currentcolor;
     color: var(--text-muted);
-    font-size: 16px;
-    line-height: 0.7;
-    transform: rotate(0deg);
+    transform: rotate(45deg);
     transition: transform var(--motion-fast);
 }
 
 .adjustment-section-chevron.is-open {
-    transform: rotate(180deg);
+    margin-top: 4px;
+    transform: rotate(225deg);
 }
 
 .adjustment-section-reset,

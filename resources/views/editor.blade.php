@@ -84,7 +84,7 @@
                                 <div class="adjustment-section-header">
                                     <button type="button" class="adjustment-section-toggle" :aria-expanded="activeSection === section" @click="activeSection = activeSection === section ? '' : section">
                                         <span class="adjustment-section-title" x-text="section"></span>
-                                        <span class="adjustment-section-chevron" :class="{ 'is-open': activeSection === section }" aria-hidden="true">⌄</span>
+                                        <span class="adjustment-section-chevron" :class="{ 'is-open': activeSection === section }" aria-hidden="true"></span>
                                     </button>
                                     <button type="button" class="adjustment-section-reset" :disabled="!sectionHasEdits(section)" @click="resetSection(section)">Reset</button>
                                 </div>

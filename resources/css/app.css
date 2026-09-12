@@ -1017,6 +1017,7 @@
 }
 
 .workspace-canvas-wrap {
+    position: relative;
     display: flex;
     max-width: calc(100% - 68px);
     max-height: calc(100% - 68px);
@@ -1033,6 +1034,85 @@
     box-shadow: 0 18px 44px rgb(0 0 0 / 22%);
     touch-action: none;
 }
+
+.crop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    touch-action: none;
+    cursor: move;
+}
+
+.crop-overlay-shade {
+    position: absolute;
+    inset: 0;
+    background: rgb(0 0 0 / 48%);
+    pointer-events: none;
+}
+
+.crop-selection {
+    position: absolute;
+    min-width: 8%;
+    min-height: 8%;
+    border: 1px solid #f5f3ee;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 40%);
+    background: rgb(255 255 255 / 3%);
+    cursor: move;
+}
+
+.crop-selection::before,
+.crop-selection::after {
+    position: absolute;
+    background: rgb(245 243 238 / 38%);
+    content: '';
+    pointer-events: none;
+}
+
+.crop-selection::before {
+    top: 33.333%;
+    right: 0;
+    left: 0;
+    height: 1px;
+    box-shadow: 0 calc(33.333% + 1px) 0 rgb(245 243 238 / 38%);
+}
+
+.crop-selection::after {
+    top: 0;
+    bottom: 0;
+    left: 33.333%;
+    width: 1px;
+    box-shadow: calc(33.333% + 1px) 0 0 rgb(245 243 238 / 38%);
+}
+
+.crop-handle {
+    position: absolute;
+    z-index: 1;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: nwse-resize;
+}
+
+.crop-handle::after {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-color: #f5f3ee;
+    border-style: solid;
+    content: '';
+}
+
+.crop-handle--nw { top: -9px; left: -9px; }
+.crop-handle--ne { top: -9px; right: -9px; cursor: nesw-resize; }
+.crop-handle--sw { bottom: -9px; left: -9px; cursor: nesw-resize; }
+.crop-handle--se { right: -9px; bottom: -9px; }
+.crop-handle--nw::after { top: 5px; left: 5px; border-width: 2px 0 0 2px; }
+.crop-handle--ne::after { top: 5px; right: 5px; border-width: 2px 2px 0 0; }
+.crop-handle--sw::after { bottom: 5px; left: 5px; border-width: 0 0 2px 2px; }
+.crop-handle--se::after { right: 5px; bottom: 5px; border-width: 0 2px 2px 0; }
 
 .workspace-image-meta {
     position: absolute;
@@ -1547,6 +1627,96 @@
     color: #d9a39a;
     font-size: 10px;
     line-height: 1.4;
+}
+
+.composition-content {
+    padding-bottom: 12px;
+}
+
+.composition-block {
+    padding: 0 20px 18px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.composition-block + .composition-block {
+    padding-top: 18px;
+}
+
+.composition-block-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.composition-value {
+    color: var(--text-primary);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-transform: capitalize;
+}
+
+.segmented-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.segmented-option,
+.composition-action,
+.nudge-button {
+    min-height: 30px;
+    padding: 5px 7px;
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.segmented-option:hover:not(:disabled),
+.segmented-option.is-active,
+.composition-action:hover:not(:disabled),
+.nudge-button:hover:not(:disabled) {
+    border-color: var(--text-secondary);
+    background: var(--background-surface);
+    color: var(--text-primary);
+}
+
+.segmented-option:disabled,
+.composition-action:disabled,
+.nudge-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+}
+
+.composition-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.nudge-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    max-width: 220px;
+}
+
+.nudge-button {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.composition-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px 0;
 }
 
 .canvas-controls {

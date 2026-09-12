@@ -59,6 +59,9 @@ export const DEFAULT_HSL = Object.freeze(
 
 export const DEFAULT_EFFECTS = Object.freeze({ fade: 0, grain: 0, vignette: 0 });
 export const DEFAULT_DETAIL = Object.freeze({ sharpen: 0 });
+export const DEFAULT_TRANSFORM = Object.freeze({ rotation: 0, flipX: false, flipY: false });
+export const DEFAULT_CROP = Object.freeze({ mode: 'original', x: 0, y: 0, width: 1, height: 1 });
+export const DEFAULT_FRAME = Object.freeze({ style: 'none', size: 0, ratio: 'original' });
 
 const preset = (id, name, adjustments = {}, effects = {}, detail = {}) => ({
     id,
@@ -86,12 +89,15 @@ export const BUILT_IN_PRESETS = Object.freeze([
 
 export function createDefaultEditState() {
     return {
-        version: 2,
+        version: 3,
         adjustments: { ...DEFAULT_ADJUSTMENTS },
         hsl: structuredClone(DEFAULT_HSL),
         effects: { ...DEFAULT_EFFECTS },
         detail: { ...DEFAULT_DETAIL },
         preset: { id: null, intensity: 100 },
+        transform: { ...DEFAULT_TRANSFORM },
+        crop: { ...DEFAULT_CROP },
+        frame: { ...DEFAULT_FRAME },
     };
 }
 
@@ -99,7 +105,7 @@ export function cloneEditState(state) {
     const fallback = createDefaultEditState();
 
     return {
-        version: state.version ?? 2,
+        version: state.version ?? 3,
         adjustments: { ...fallback.adjustments, ...state.adjustments },
         hsl: Object.fromEntries(HSL_COLOR_DEFINITIONS.map(({ id }) => [
             id,
@@ -108,6 +114,9 @@ export function cloneEditState(state) {
         effects: { ...fallback.effects, ...state.effects },
         detail: { ...fallback.detail, ...state.detail },
         preset: { ...fallback.preset, ...state.preset },
+        transform: { ...fallback.transform, ...state.transform },
+        crop: { ...fallback.crop, ...state.crop },
+        frame: { ...fallback.frame, ...state.frame },
     };
 }
 
@@ -183,6 +192,9 @@ export function interpolateEditStates(baseState, targetState, intensity = 1) {
     }
 
     next.preset = { ...base.preset };
+    next.transform = { ...base.transform };
+    next.crop = { ...base.crop };
+    next.frame = { ...base.frame };
 
     return next;
 }
@@ -436,31 +448,165 @@ export function releaseImageSource(source) {
     if (source && typeof source.close === 'function') source.close();
 }
 
-export function renderPreview({ source, canvas, editState, original = false, maxDimension = PREVIEW_MAX_DIMENSION }) {
+function normalizeCrop(crop = DEFAULT_CROP) {
+    const width = clamp(Number(crop.width ?? 1), 0.05, 1);
+    const height = clamp(Number(crop.height ?? 1), 0.05, 1);
+
+    return {
+        mode: crop.mode ?? 'free',
+        x: clamp(Number(crop.x ?? 0), 0, 1 - width),
+        y: clamp(Number(crop.y ?? 0), 0, 1 - height),
+        width,
+        height,
+    };
+}
+
+export function createCropForMode(mode, sourceWidth, sourceHeight, currentCrop = DEFAULT_CROP) {
+    if (mode === 'original') return { ...DEFAULT_CROP };
+    if (mode === 'free') return { ...normalizeCrop(currentCrop), mode: 'free' };
+
+    const ratios = { '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '16:9': 16 / 9 };
+    const targetRatio = ratios[mode] ?? sourceWidth / sourceHeight;
+    const sourceRatio = sourceWidth / sourceHeight;
+    const width = sourceRatio > targetRatio ? targetRatio / sourceRatio : 1;
+    const height = sourceRatio > targetRatio ? 1 : sourceRatio / targetRatio;
+
+    return {
+        mode,
+        x: (1 - width) / 2,
+        y: (1 - height) / 2,
+        width,
+        height,
+    };
+}
+
+function frameRatioValue(ratio) {
+    return { '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16 }[ratio] ?? null;
+}
+
+function composePhoto(source, editState, {
+    includeCrop = true,
+    includeFrame = true,
+    maxDimension = PREVIEW_MAX_DIMENSION,
+} = {}) {
     const sourceWidth = source.width ?? source.naturalWidth;
     const sourceHeight = source.height ?? source.naturalHeight;
-    const { width, height } = getPreviewSize(sourceWidth, sourceHeight, maxDimension);
-    const context = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
+    const crop = includeCrop ? normalizeCrop(editState.crop) : { ...DEFAULT_CROP };
+    const cropWidth = sourceWidth * crop.width;
+    const cropHeight = sourceHeight * crop.height;
+    const rotation = ((Number(editState.transform?.rotation ?? 0) % 360) + 360) % 360;
+    const isQuarterTurn = rotation === 90 || rotation === 270;
+    const transformedWidth = isQuarterTurn ? cropHeight : cropWidth;
+    const transformedHeight = isQuarterTurn ? cropWidth : cropHeight;
+    const scale = Math.min(1, maxDimension / Math.max(transformedWidth, transformedHeight));
+    const photoWidth = Math.max(1, Math.round(transformedWidth * scale));
+    const photoHeight = Math.max(1, Math.round(transformedHeight * scale));
+    const photoCanvas = document.createElement('canvas');
 
-    canvas.width = width;
-    canvas.height = height;
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = 'high';
-    context.clearRect(0, 0, width, height);
-    context.drawImage(source, 0, 0, width, height);
+    photoCanvas.width = photoWidth;
+    photoCanvas.height = photoHeight;
 
-    if (!original) {
-        const imageData = context.getImageData(0, 0, width, height);
+    const photoContext = photoCanvas.getContext('2d', { alpha: true, willReadFrequently: true });
 
-        applyAdjustmentsToPixels(imageData.data, editState.adjustments, {
-            width,
-            height,
-            hsl: editState.hsl,
-            effects: editState.effects,
-            detail: editState.detail,
-        });
-        context.putImageData(imageData, 0, 0);
+    photoContext.imageSmoothingEnabled = true;
+    photoContext.imageSmoothingQuality = 'high';
+    photoContext.translate(photoWidth / 2, photoHeight / 2);
+    photoContext.rotate(rotation * Math.PI / 180);
+    photoContext.scale(editState.transform?.flipX ? -1 : 1, editState.transform?.flipY ? -1 : 1);
+    photoContext.drawImage(
+        source,
+        sourceWidth * crop.x,
+        sourceHeight * crop.y,
+        sourceWidth * crop.width,
+        sourceHeight * crop.height,
+        -cropWidth * scale / 2,
+        -cropHeight * scale / 2,
+        cropWidth * scale,
+        cropHeight * scale,
+    );
+
+    const imageData = photoContext.getImageData(0, 0, photoWidth, photoHeight);
+
+    applyAdjustmentsToPixels(imageData.data, editState.adjustments, {
+        width: photoWidth,
+        height: photoHeight,
+        hsl: editState.hsl,
+        effects: editState.effects,
+        detail: editState.detail,
+    });
+    photoContext.putImageData(imageData, 0, 0);
+
+    if (!includeFrame) return photoCanvas;
+
+    const frame = { ...DEFAULT_FRAME, ...(editState.frame ?? {}) };
+    const padding = Math.max(photoWidth, photoHeight) * clamp(Number(frame.size) / 100, 0, 0.3);
+    const innerWidth = photoWidth + padding * 2;
+    const innerHeight = photoHeight + padding * 2;
+    const targetRatio = frameRatioValue(frame.ratio);
+    let outputWidth = innerWidth;
+    let outputHeight = innerHeight;
+
+    if (targetRatio) {
+        if (innerWidth / innerHeight > targetRatio) outputHeight = innerWidth / targetRatio;
+        else outputWidth = innerHeight * targetRatio;
     }
 
-    return { width, height };
+    const frameCanvas = document.createElement('canvas');
+
+    frameCanvas.width = Math.max(1, Math.ceil(outputWidth));
+    frameCanvas.height = Math.max(1, Math.ceil(outputHeight));
+
+    const frameContext = frameCanvas.getContext('2d', { alpha: true });
+
+    if (frame.style === 'white' || frame.style === 'black') {
+        frameContext.fillStyle = frame.style === 'white' ? '#ffffff' : '#000000';
+        frameContext.fillRect(0, 0, frameCanvas.width, frameCanvas.height);
+    } else {
+        frameContext.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+    }
+
+    frameContext.imageSmoothingEnabled = true;
+    frameContext.imageSmoothingQuality = 'high';
+    frameContext.drawImage(
+        photoCanvas,
+        (frameCanvas.width - photoWidth) / 2,
+        (frameCanvas.height - photoHeight) / 2,
+    );
+
+    return frameCanvas;
+}
+
+export function renderPreview({
+    source,
+    canvas,
+    editState,
+    original = false,
+    includeCrop = true,
+    includeFrame = true,
+    maxDimension = PREVIEW_MAX_DIMENSION,
+}) {
+    const sourceWidth = source.width ?? source.naturalWidth;
+    const sourceHeight = source.height ?? source.naturalHeight;
+    const context = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
+    let output;
+
+    if (original) {
+        const originalSize = getPreviewSize(sourceWidth, sourceHeight, maxDimension);
+
+        output = document.createElement('canvas');
+        output.width = originalSize.width;
+        output.height = originalSize.height;
+        output.getContext('2d').drawImage(source, 0, 0, originalSize.width, originalSize.height);
+    } else {
+        output = composePhoto(source, editState, { includeCrop, includeFrame, maxDimension });
+    }
+
+    canvas.width = output.width;
+    canvas.height = output.height;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.clearRect(0, 0, output.width, output.height);
+    context.drawImage(output, 0, 0);
+
+    return { width: output.width, height: output.height };
 }

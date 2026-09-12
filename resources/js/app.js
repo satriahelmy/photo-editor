@@ -28,6 +28,7 @@ import {
     HSL_COLOR_DEFINITIONS,
     HSL_CONTROL_DEFINITIONS,
     cloneEditState,
+    createCropForMode,
     createDefaultEditState,
     decodeImageFile,
     editStatesEqual,
@@ -46,6 +47,25 @@ window.editorShell = () => ({
     activeTool: 'adjust',
     activeSection: 'Light',
     activeHslColor: 'red',
+    cropModeOptions: [
+        { id: 'original', label: 'Original' },
+        { id: 'free', label: 'Free' },
+        { id: '1:1', label: '1:1' },
+        { id: '4:5', label: '4:5' },
+        { id: '9:16', label: '9:16' },
+        { id: '16:9', label: '16:9' },
+    ],
+    frameStyleOptions: [
+        { id: 'none', label: 'None' },
+        { id: 'white', label: 'White' },
+        { id: 'black', label: 'Black' },
+    ],
+    frameRatioOptions: [
+        { id: 'original', label: 'Original' },
+        { id: '1:1', label: '1:1' },
+        { id: '4:5', label: '4:5' },
+        { id: '9:16', label: '9:16' },
+    ],
     sections: ['Light', 'Color', 'HSL', 'Effects', 'Detail'],
     tools: [
         { id: 'adjust', label: 'Adjust', icon: 'sliders-horizontal' },
@@ -76,6 +96,7 @@ window.editorShell = () => ({
     panX: 0,
     panY: 0,
     panStart: null,
+    cropDrag: null,
     lastSliderTap: null,
     presetIntensity: 100,
     activePresetId: null,
@@ -152,6 +173,7 @@ window.editorShell = () => ({
     },
     activateTool(toolId) {
         this.activeTool = toolId;
+        this.scheduleRender();
 
         if (toolId === 'presets') this.$nextTick(() => this.renderPresetThumbnails());
     },
@@ -168,6 +190,8 @@ window.editorShell = () => ({
                 canvas: this.$refs.canvas,
                 editState: this.editState,
                 original: this.showOriginal,
+                includeCrop: this.activeTool !== 'crop',
+                includeFrame: this.activeTool !== 'crop',
             });
             this._renderFrame = null;
         });
@@ -225,6 +249,7 @@ window.editorShell = () => ({
             this.activePresetId = null;
             this.presetBaseState = null;
             this.presetIntensity = 100;
+            this.cropDrag = null;
             this.zoom = 1;
             this.panX = 0;
             this.panY = 0;
@@ -378,6 +403,174 @@ window.editorShell = () => ({
         }
 
         this.lastSliderTap = { key, time: now };
+    },
+    get cropSelectionStyle() {
+        const crop = this.editState.crop;
+
+        return `left: ${crop.x * 100}%; top: ${crop.y * 100}%; width: ${crop.width * 100}%; height: ${crop.height * 100}%;`;
+    },
+    setCropMode(mode) {
+        if (!this.source) return;
+
+        this.editState.crop = createCropForMode(
+            mode,
+            this.source.width ?? this.source.naturalWidth,
+            this.source.height ?? this.source.naturalHeight,
+            this.editState.crop,
+        );
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    startCropDrag(event, mode = 'move', handle = '') {
+        if (!this.source) return;
+
+        const rect = this.$refs.cropOverlay?.getBoundingClientRect();
+
+        if (!rect) return;
+
+        this.cropDrag = {
+            mode,
+            handle,
+            startX: event.clientX,
+            startY: event.clientY,
+            width: rect.width,
+            height: rect.height,
+            crop: { ...this.editState.crop },
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    moveCrop(event) {
+        if (!this.cropDrag) return;
+
+        const drag = this.cropDrag;
+        const deltaX = (event.clientX - drag.startX) / drag.width;
+        const deltaY = (event.clientY - drag.startY) / drag.height;
+        const start = drag.crop;
+        const next = { ...start };
+
+        if (drag.mode === 'move') {
+            next.x = Math.min(1 - start.width, Math.max(0, start.x + deltaX));
+            next.y = Math.min(1 - start.height, Math.max(0, start.y + deltaY));
+            this.editState.crop = next;
+            return;
+        }
+
+        const minSize = 0.08;
+        let left = start.x;
+        let top = start.y;
+        let right = start.x + start.width;
+        let bottom = start.y + start.height;
+        const resizingEast = drag.handle.includes('e');
+        const resizingSouth = drag.handle.includes('s');
+        const resizingWest = drag.handle.includes('w');
+        const resizingNorth = drag.handle.includes('n');
+
+        if (resizingEast) right = Math.min(1, Math.max(left + minSize, right + deltaX));
+        if (resizingSouth) bottom = Math.min(1, Math.max(top + minSize, bottom + deltaY));
+        if (resizingWest) left = Math.max(0, Math.min(right - minSize, left + deltaX));
+        if (resizingNorth) top = Math.max(0, Math.min(bottom - minSize, top + deltaY));
+
+        if (start.mode !== 'free' && start.mode !== 'original') {
+            const sourceWidth = this.source.width ?? this.source.naturalWidth;
+            const sourceHeight = this.source.height ?? this.source.naturalHeight;
+            const sourceRatio = sourceWidth / sourceHeight;
+            const targetRatio = { '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '16:9': 16 / 9 }[start.mode] ?? sourceRatio;
+            const cropRatio = targetRatio / sourceRatio;
+            const width = right - left;
+            const height = bottom - top;
+
+            if (resizingEast || resizingWest) {
+                const adjustedHeight = Math.min(height, width / cropRatio);
+
+                if (resizingNorth) top = bottom - adjustedHeight;
+                else bottom = top + adjustedHeight;
+            } else if (resizingNorth || resizingSouth) {
+                const adjustedWidth = Math.min(width, height * cropRatio);
+
+                if (resizingWest) left = right - adjustedWidth;
+                else right = left + adjustedWidth;
+            }
+        }
+
+        this.editState.crop = {
+            ...next,
+            x: left,
+            y: top,
+            width: right - left,
+            height: bottom - top,
+        };
+    },
+    endCropDrag(event) {
+        if (!this.cropDrag) return;
+
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+        this.cropDrag = null;
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    nudgeCrop(deltaX, deltaY) {
+        if (!this.source) return;
+
+        const crop = this.editState.crop;
+
+        this.editState.crop.x = Math.min(1 - crop.width, Math.max(0, crop.x + deltaX));
+        this.editState.crop.y = Math.min(1 - crop.height, Math.max(0, crop.y + deltaY));
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    applyCrop() {
+        if (!this.source) return;
+
+        this.pushHistory();
+        this.activeTool = 'adjust';
+        this.scheduleRender();
+    },
+    resetCrop() {
+        if (!this.source) return;
+
+        this.editState.crop = { mode: 'original', x: 0, y: 0, width: 1, height: 1 };
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    rotate(direction) {
+        if (!this.source) return;
+
+        const rotation = this.editState.transform.rotation + direction * 90;
+
+        this.editState.transform.rotation = ((rotation % 360) + 360) % 360;
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    toggleFlip(axis) {
+        if (!this.source) return;
+
+        const key = axis === 'horizontal' ? 'flipX' : 'flipY';
+
+        this.editState.transform[key] = !this.editState.transform[key];
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    setFrameStyle(style) {
+        this.editState.frame.style = style;
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    setFrameRatio(ratio) {
+        this.editState.frame.ratio = ratio;
+        this.pushHistory();
+        this.scheduleRender();
+    },
+    setFrameSize(value) {
+        this.editState.frame.size = Number(value);
+        this.scheduleRender();
+    },
+    commitFrameSize() {
+        this.pushHistory();
+    },
+    resetFrame() {
+        this.editState.frame = { style: 'none', size: 0, ratio: 'original' };
+        this.pushHistory();
+        this.scheduleRender();
     },
     presetFormula(presetItem) {
         return presetItem.state ?? presetItem;

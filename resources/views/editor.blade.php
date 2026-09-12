@@ -56,6 +56,24 @@
                 </div>
                 <div class="workspace-canvas-wrap" x-show="hasImage" x-cloak :style="{ transform: canvasTransform }">
                     <canvas x-ref="canvas" class="workspace-canvas" aria-label="Edited photo preview"></canvas>
+                    <div
+                        class="crop-overlay"
+                        x-ref="cropOverlay"
+                        x-show="activeTool === 'crop'"
+                        x-cloak
+                        @pointerdown="startCropDrag($event)"
+                        @pointermove="moveCrop($event)"
+                        @pointerup="endCropDrag($event)"
+                        @pointercancel="endCropDrag($event)"
+                    >
+                        <div class="crop-overlay-shade" aria-hidden="true"></div>
+                        <div class="crop-selection" :style="cropSelectionStyle" aria-label="Crop selection">
+                            <button type="button" class="crop-handle crop-handle--nw" aria-label="Resize crop from top left" @pointerdown.stop.prevent="startCropDrag($event, 'resize', 'nw')"></button>
+                            <button type="button" class="crop-handle crop-handle--ne" aria-label="Resize crop from top right" @pointerdown.stop.prevent="startCropDrag($event, 'resize', 'ne')"></button>
+                            <button type="button" class="crop-handle crop-handle--sw" aria-label="Resize crop from bottom left" @pointerdown.stop.prevent="startCropDrag($event, 'resize', 'sw')"></button>
+                            <button type="button" class="crop-handle crop-handle--se" aria-label="Resize crop from bottom right" @pointerdown.stop.prevent="startCropDrag($event, 'resize', 'se')"></button>
+                        </div>
+                    </div>
                 </div>
                 <div class="workspace-image-meta" x-show="hasImage" x-cloak @pointerdown.stop>
                     <span x-text="fileLabel"></span>
@@ -168,7 +186,65 @@
                             <p class="preset-error" x-show="presetError" x-text="presetError" role="alert"></p>
                         </div>
                     </div>
-                    <div x-show="activeTool !== 'adjust' && activeTool !== 'presets'" class="panel-empty" x-cloak>
+                    <div x-show="activeTool === 'crop'" class="composition-content" x-cloak>
+                        <div class="composition-block">
+                            <div class="composition-block-heading"><span>Crop ratio</span><span class="composition-value" x-text="editState.crop.mode"></span></div>
+                            <div class="segmented-options" role="group" aria-label="Crop ratio">
+                                <template x-for="option in cropModeOptions" :key="option.id">
+                                    <button type="button" class="segmented-option" :class="{ 'is-active': editState.crop.mode === option.id }" :aria-pressed="editState.crop.mode === option.id" :disabled="!hasImage" @click="setCropMode(option.id)" x-text="option.label"></button>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="composition-block">
+                            <div class="composition-block-heading"><span>Transform</span><span class="composition-value" x-text="`${editState.transform.rotation}°`"></span></div>
+                            <div class="composition-actions" role="group" aria-label="Transform controls">
+                                <button type="button" class="composition-action" :disabled="!hasImage" @click="rotate(-1)">Rotate left</button>
+                                <button type="button" class="composition-action" :disabled="!hasImage" @click="rotate(1)">Rotate right</button>
+                                <button type="button" class="composition-action" :disabled="!hasImage" @click="toggleFlip('horizontal')">Flip horizontal</button>
+                                <button type="button" class="composition-action" :disabled="!hasImage" @click="toggleFlip('vertical')">Flip vertical</button>
+                            </div>
+                        </div>
+                        <div class="composition-block crop-keyboard-controls">
+                            <div class="composition-block-heading"><span>Fine position</span><span class="composition-value">Keyboard / touch</span></div>
+                            <div class="nudge-controls" role="group" aria-label="Nudge crop selection">
+                                <button type="button" class="nudge-button" :disabled="!hasImage" aria-label="Move crop up" @click="nudgeCrop(0, -0.02)">↑</button>
+                                <button type="button" class="nudge-button" :disabled="!hasImage" aria-label="Move crop left" @click="nudgeCrop(-0.02, 0)">←</button>
+                                <button type="button" class="nudge-button" :disabled="!hasImage" aria-label="Move crop down" @click="nudgeCrop(0, 0.02)">↓</button>
+                                <button type="button" class="nudge-button" :disabled="!hasImage" aria-label="Move crop right" @click="nudgeCrop(0.02, 0)">→</button>
+                            </div>
+                        </div>
+                        <div class="composition-footer-actions">
+                            <button type="button" class="button button--light button--small" :disabled="!hasImage" @click="applyCrop()">Apply crop</button>
+                            <button type="button" class="reset-all-button" :disabled="!hasImage" @click="resetCrop()">Reset crop</button>
+                        </div>
+                    </div>
+                    <div x-show="activeTool === 'frame'" class="composition-content" x-cloak>
+                        <div class="composition-block">
+                            <div class="composition-block-heading"><span>Frame</span><span class="composition-value" x-text="editState.frame.style"></span></div>
+                            <div class="segmented-options" role="group" aria-label="Frame style">
+                                <template x-for="option in frameStyleOptions" :key="option.id">
+                                    <button type="button" class="segmented-option" :class="{ 'is-active': editState.frame.style === option.id }" :aria-pressed="editState.frame.style === option.id" :disabled="!hasImage" @click="setFrameStyle(option.id)" x-text="option.label"></button>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="composition-block">
+                            <div class="composition-block-heading"><span>Canvas ratio</span><span class="composition-value" x-text="editState.frame.ratio"></span></div>
+                            <div class="segmented-options" role="group" aria-label="Frame canvas ratio">
+                                <template x-for="option in frameRatioOptions" :key="option.id">
+                                    <button type="button" class="segmented-option" :class="{ 'is-active': editState.frame.ratio === option.id }" :aria-pressed="editState.frame.ratio === option.id" :disabled="!hasImage" @click="setFrameRatio(option.id)" x-text="option.label"></button>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="composition-block">
+                            <div class="composition-block-heading"><span>Frame size</span><output class="composition-value" x-text="`${editState.frame.size}%`"></output></div>
+                            <input class="adjustment-slider" type="range" min="0" max="30" step="1" :value="editState.frame.size" :disabled="!hasImage" aria-label="Frame size" @input="setFrameSize($event.target.value)" @change="commitFrameSize()">
+                            <div class="slider-range" aria-hidden="true"><span>0</span><span>30</span></div>
+                        </div>
+                        <div class="composition-footer-actions">
+                            <button type="button" class="reset-all-button" :disabled="!hasImage" @click="resetFrame()">Reset frame</button>
+                        </div>
+                    </div>
+                    <div x-show="!['adjust', 'presets', 'crop', 'frame'].includes(activeTool)" class="panel-empty" x-cloak>
                         <p><span x-text="panelTitle"></span> will appear here once a photo is loaded.</p>
                     </div>
                 </div>

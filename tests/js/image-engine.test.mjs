@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
     BUILT_IN_PRESETS,
+    DEFAULT_CROP,
+    DEFAULT_FRAME,
     DEFAULT_ADJUSTMENTS,
     DEFAULT_HSL,
     applyAdjustmentsToPixels,
     createDefaultEditState,
+    createCropForMode,
     editStatesEqual,
     formatAdjustmentValue,
     getPreviewSize,
@@ -79,5 +82,21 @@ const state = createDefaultEditState();
 assert.equal(editStatesEqual(state, createDefaultEditState()), true);
 state.adjustments.contrast = 10;
 assert.equal(editStatesEqual(state, createDefaultEditState()), false);
+
+const squareCrop = createCropForMode('1:1', 4000, 2000);
+assert.equal(squareCrop.width, 0.5, '1:1 crop must fit the source aspect ratio');
+assert.equal(squareCrop.x, 0.25, 'fixed crop must be centered horizontally');
+const portraitCrop = createCropForMode('4:5', 4000, 2000);
+assert.equal(portraitCrop.height, 1, 'portrait crop should use the full source height when possible');
+assert.equal(portraitCrop.mode, '4:5');
+assert.deepEqual(createCropForMode('original', 4000, 2000), DEFAULT_CROP, 'original crop must cover the source');
+
+const compositionState = createDefaultEditState();
+compositionState.transform.rotation = 90;
+compositionState.transform.flipX = true;
+compositionState.crop = squareCrop;
+compositionState.frame = { style: 'white', size: 12, ratio: '4:5' };
+assert.equal(editStatesEqual(compositionState, createDefaultEditState()), false, 'composition parameters must participate in edit equality');
+assert.deepEqual(DEFAULT_FRAME, { style: 'none', size: 0, ratio: 'original' });
 
 console.log('image-engine tests passed');

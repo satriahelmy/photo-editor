@@ -167,23 +167,31 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### Crop dan transform
 
-- [ ] Implementasikan crop overlay langsung pada canvas.
-- [ ] Implementasikan mode Original, Free, 1:1, 4:5, 9:16, dan 16:9.
-- [ ] Implementasikan drag/resize crop area dengan pointer dan touch.
-- [ ] Implementasikan Rotate kiri/kanan.
-- [ ] Implementasikan Flip horizontal dan vertical.
-- [ ] Pastikan transform/crop tidak merusak original dan tidak melakukan downscale permanen sebelum export.
-- [ ] Integrasikan crop, rotate, flip, dan aspect ratio ke history serta Reset All.
-- [ ] Pastikan crop overlay memiliki keyboard/fallback control yang masuk akal atau documented limitation bila interaksi murni pointer tidak dapat digantikan.
+- [x] Implementasikan crop overlay langsung pada canvas.
+- [x] Implementasikan mode Original, Free, 1:1, 4:5, 9:16, dan 16:9.
+- [x] Implementasikan drag/resize crop area dengan pointer dan touch.
+- [x] Implementasikan Rotate kiri/kanan.
+- [x] Implementasikan Flip horizontal dan vertical.
+- [x] Pastikan transform/crop tidak merusak original dan tidak melakukan downscale permanen sebelum export.
+- [x] Integrasikan crop, rotate, flip, dan aspect ratio ke history serta Reset All.
+- [x] Pastikan crop overlay memiliki keyboard/fallback control yang masuk akal atau documented limitation bila interaksi murni pointer tidak dapat digantikan.
 
 ### Frame
 
-- [ ] Implementasikan frame None, White, dan Black.
-- [ ] Implementasikan Frame Size slider dengan preview real-time.
-- [ ] Implementasikan canvas ratio Original, 1:1, 4:5, dan 9:16.
-- [ ] Center-kan foto dalam canvas frame tanpa cropping ketika behavior frame dipilih.
-- [ ] Pastikan white frame benar-benar white dan black frame benar-benar black.
+- [x] Implementasikan frame None, White, dan Black.
+- [x] Implementasikan Frame Size slider dengan preview real-time.
+- [x] Implementasikan canvas ratio Original, 1:1, 4:5, dan 9:16.
+- [x] Center-kan foto dalam canvas frame tanpa cropping ketika behavior frame dipilih.
+- [x] Pastikan white frame benar-benar white dan black frame benar-benar black.
 - [ ] Integrasikan frame ke state, history, Before/After, dan export.
+
+### M3 decision log — 2026-09-12
+
+- Crop disimpan sebagai normalized rectangle (`x`, `y`, `width`, `height`) agar pointer/touch interaction tidak bergantung pada ukuran preview.
+- Rotate dan flip diterapkan pada preview composition canvas; source image tetap immutable dan tidak pernah didownscale permanen.
+- Frame diterapkan setelah adjustment pada layer foto, sehingga warna frame White/Black tetap benar-benar putih/hitam.
+- Ratio frame tidak melakukan crop: canvas output diperluas dan foto selalu di-center di dalamnya.
+- Export full-resolution akan memakai state composition yang sama pada milestone export berikutnya.
 
 ### Copy / Paste Edit (P2)
 

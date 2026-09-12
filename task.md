@@ -27,38 +27,38 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### Project dan routing
 
-- [ ] Siapkan project Laravel dan struktur frontend sesuai stack yang disepakati.
-- [ ] Tambahkan route `/` untuk landing page.
-- [ ] Tambahkan route `/editor` untuk editor.
-- [ ] Pastikan `/editor` dapat dibuka tanpa login dan tanpa parameter server-side yang wajib.
-- [ ] Siapkan layout Blade minimal tanpa component explosion.
-- [ ] Siapkan linting, formatting, dan test command yang dapat dijalankan secara konsisten.
+- [x] Siapkan project Laravel dan struktur frontend sesuai stack yang disepakati.
+- [x] Tambahkan route `/` untuk landing page.
+- [x] Tambahkan route `/editor` untuk editor.
+- [x] Pastikan `/editor` dapat dibuka tanpa login dan tanpa parameter server-side yang wajib.
+- [x] Siapkan layout Blade minimal tanpa component explosion.
+- [x] Siapkan linting, formatting, dan test command yang dapat dijalankan secara konsisten.
 
 ### Design system dan shell
 
-- [ ] Buat centralized design tokens untuk background, panel, surface, text, border, spacing, radius, dan motion.
-- [ ] Terapkan tema dark neutral: app sekitar `#111111`, panel sekitar `#171717`, surface sekitar `#1D1D1D`; sesuaikan hanya bila hasil QA lebih baik.
-- [ ] Gunakan Inter atau system sans-serif tunggal dengan hierarchy typography yang functional.
-- [ ] Integrasikan satu icon system monochrome, misalnya Lucide, hanya untuk control yang memang membutuhkan icon.
-- [ ] Buat application shell desktop: top bar, tool rail, image workspace terbesar, adjustment panel, dan bottom canvas controls.
-- [ ] Buat top bar tinggi sekitar 52–60px dengan product mark/back, Undo, Redo, dan Export.
-- [ ] Buat tool rail compact dengan Adjust, Presets, Match, Crop, dan Frame; selected state subtle tanpa large card.
-- [ ] Buat panel kanan 280–340px yang scrollable secara independen.
-- [ ] Buat empty editor state: “Drop a photo here”, browse alternative, dan “JPG, PNG or WebP”.
+- [x] Buat centralized design tokens untuk background, panel, surface, text, border, spacing, radius, dan motion.
+- [x] Terapkan tema dark neutral: app sekitar `#111111`, panel sekitar `#171717`, surface sekitar `#1D1D1D`; sesuaikan hanya bila hasil QA lebih baik.
+- [x] Gunakan Inter atau system sans-serif tunggal dengan hierarchy typography yang functional.
+- [x] Integrasikan satu icon system monochrome, misalnya Lucide, hanya untuk control yang memang membutuhkan icon.
+- [x] Buat application shell desktop: top bar, tool rail, image workspace terbesar, adjustment panel, dan bottom canvas controls.
+- [x] Buat top bar tinggi sekitar 52–60px dengan product mark/back, Undo, Redo, dan Export.
+- [x] Buat tool rail compact dengan Adjust, Presets, Match, Crop, dan Frame; selected state subtle tanpa large card.
+- [x] Buat panel kanan 280–340px yang scrollable secara independen.
+- [x] Buat empty editor state: “Drop a photo here”, browse alternative, dan “JPG, PNG or WebP”.
 - [ ] Buat komponen control dasar yang reusable secukupnya: button, segmented control, slider row, section/collapse, dialog, file dropzone, dan toast/status message.
-- [ ] Pastikan control tidak memakai gradient, glow, glassmorphism, giant pill, dekorasi abstrak, atau shadow yang tidak diperlukan.
+- [x] Pastikan control tidak memakai gradient, glow, glassmorphism, giant pill, dekorasi abstrak, atau shadow yang tidak diperlukan.
 
 ### Landing page
 
-- [ ] Bangun hero dengan copy utama “Beautiful color grading. Right in your browser.” dan CTA “Edit a Photo”.
-- [ ] Tampilkan pesan “Free · No signup · No watermark” tanpa fake social proof.
-- [ ] Tampilkan product preview/editor visual sebagai hero visual, bukan abstract illustration.
-- [ ] Tambahkan section product demo / before-after dengan draggable divider.
-- [ ] Tambahkan section Match Reference dengan visual storytelling target → reference → matched result.
-- [ ] Tambahkan section presets, privacy, CTA, dan footer dengan copy ringkas.
-- [ ] Gunakan foto editorial/lifestyle yang sah dipakai dan menunjukkan manfaat color grading; jangan gunakan placeholder, corporate stock generik, atau artwork AI.
-- [ ] Tampilkan privacy message “Your photos stay on your device.” hanya setelah alur client-side diverifikasi.
-- [ ] Pastikan CTA landing mengarah ke `/editor`.
+- [x] Bangun hero dengan copy utama “Beautiful color grading. Right in your browser.” dan CTA “Edit a Photo”.
+- [x] Tampilkan pesan “Free · No signup · No watermark” tanpa fake social proof.
+- [x] Tampilkan product preview/editor visual sebagai hero visual, bukan abstract illustration.
+- [x] Tambahkan section product demo / before-after dengan draggable divider.
+- [x] Tambahkan section Match Reference dengan visual storytelling target → reference → matched result.
+- [x] Tambahkan section presets, privacy, CTA, dan footer dengan copy ringkas.
+- [x] Gunakan foto editorial/lifestyle yang sah dipakai dan menunjukkan manfaat color grading; jangan gunakan placeholder, corporate stock generik, atau artwork AI.
+- [x] Tampilkan privacy message “Your photos stay on your device.” hanya setelah alur client-side diverifikasi.
+- [x] Pastikan CTA landing mengarah ke `/editor`.
 
 ## M1 — Image Engine dan Core Editor (P0)
 

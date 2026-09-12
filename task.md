@@ -204,35 +204,46 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### Reference lifecycle dan UI
 
-- [ ] Implementasikan upload reference JPG/JPEG, PNG, dan WebP secara client-side.
-- [ ] Tampilkan preview target dan reference secara berdampingan di panel Match.
-- [ ] Sediakan dropzone dan browse alternative untuk reference.
-- [ ] Implementasikan Remove Reference dan pembersihan resource reference.
-- [ ] Pastikan reference hanya menjadi visual/style source dan tidak ikut masuk ke export target.
-- [ ] Tampilkan limitation yang jelas: hasil mereproduksi karakter color grading, bukan menjamin hasil identik.
-- [ ] Saat processing berlangsung, tampilkan hanya status nyata seperti “Matching color grade…” dengan spinner subtle.
-- [ ] Hindari AI sparkle, AI gradient, “Powered by AI”, magic wand animation, dan success modal besar.
+- [x] Implementasikan upload reference JPG/JPEG, PNG, dan WebP secara client-side.
+- [x] Tampilkan preview target dan reference secara berdampingan di panel Match.
+- [x] Sediakan dropzone dan browse alternative untuk reference.
+- [x] Implementasikan Remove Reference dan pembersihan resource reference.
+- [x] Pastikan reference hanya menjadi visual/style source dan tidak ikut masuk ke export target.
+- [x] Tampilkan limitation yang jelas: hasil mereproduksi karakter color grading, bukan menjamin hasil identik.
+- [x] Saat processing berlangsung, tampilkan hanya status nyata seperti “Matching color grade…” dengan spinner subtle.
+- [x] Hindari AI sparkle, AI gradient, “Powered by AI”, magic wand animation, dan success modal besar.
 
 ### Analisis dan parameter translation
 
-- [ ] Buat feature extractor lokal untuk luminance/exposure distribution, contrast, white balance, temperature/tint, saturation, tone distribution, highlight/shadow behavior, black level, channel/color distribution, dan HSL tendencies sesuai kemampuan renderer.
-- [ ] Pilih dan dokumentasikan metode analisis: histogram/statistics/tone mapping atau pendekatan lain yang tetap non-generative.
-- [ ] Implementasikan perbandingan feature target terhadap reference, bukan hanya menyalin nilai mentah reference.
-- [ ] Terjemahkan hasil analisis menjadi parameter editor yang dapat diedit: minimal Temperature, Tint, Contrast, Highlights, Shadows, Saturation, dan HSL bila memungkinkan.
-- [ ] Clamp hasil ke rentang slider dan simpan parameter match sebagai state yang dapat di-Undo/Redo.
-- [ ] Pastikan operasi match tidak mengubah geometry/content foto.
+- [x] Buat feature extractor lokal untuk luminance/exposure distribution, contrast, white balance, temperature/tint, saturation, tone distribution, highlight/shadow behavior, black level, channel/color distribution, dan HSL tendencies sesuai kemampuan renderer.
+- [x] Pilih dan dokumentasikan metode analisis: histogram/statistics/tone mapping atau pendekatan lain yang tetap non-generative.
+- [x] Implementasikan perbandingan feature target terhadap reference, bukan hanya menyalin nilai mentah reference.
+- [x] Terjemahkan hasil analisis menjadi parameter editor yang dapat diedit: minimal Temperature, Tint, Contrast, Highlights, Shadows, Saturation, dan HSL bila memungkinkan.
+- [x] Clamp hasil ke rentang slider dan simpan parameter match sebagai state yang dapat di-Undo/Redo.
+- [x] Pastikan operasi match tidak mengubah geometry/content foto.
 - [ ] Uji kasus target/reference berbeda lighting, kamera, exposure, environment, skin tone, time of day, dan dynamic range.
-- [ ] Tetapkan behavior jika reference terlalu kecil, transparan, rusak, atau analisis menghasilkan confidence rendah.
+- [x] Tetapkan behavior jika reference terlalu kecil, transparan, rusak, atau analisis menghasilkan confidence rendah.
 
 ### Intensity dan fine tuning
 
-- [ ] Terapkan Match Intensity default 100%.
-- [ ] Interpolasikan hasil match terhadap state sebelum match sehingga 0% mengembalikan state sebelumnya dan 100% menerapkan full match.
-- [ ] Pastikan perubahan intensity real-time dan tidak mengakumulasi match berulang kali.
-- [ ] Tampilkan feedback “Grade matched” secara subtle beserta ringkasan parameter yang dihasilkan.
-- [ ] Sediakan perpindahan langsung ke Adjust untuk fine tuning.
-- [ ] Integrasikan Match Reference, Match Intensity, Remove Reference, dan fine tuning ke history dengan entry yang dapat dipahami user.
+- [x] Terapkan Match Intensity default 100%.
+- [x] Interpolasikan hasil match terhadap state sebelum match sehingga 0% mengembalikan state sebelumnya dan 100% menerapkan full match.
+- [x] Pastikan perubahan intensity real-time dan tidak mengakumulasi match berulang kali.
+- [x] Tampilkan feedback “Grade matched” secara subtle beserta ringkasan parameter yang dihasilkan.
+- [x] Sediakan perpindahan langsung ke Adjust untuk fine tuning.
+- [x] Integrasikan Match Reference, Match Intensity, dan fine tuning ke history dengan entry yang dapat dipahami user.
+- [x] Tentukan apakah Remove Reference perlu menjadi entry history tersendiri; diputuskan tidak, karena penghapusan hanya membersihkan source/UI tanpa mengubah grade target.
 - [ ] Pastikan seluruh target/reference tetap berada di browser; audit network untuk memastikan tidak ada image upload.
+
+### M4 decision log — 2026-09-12
+
+- Reference dianalisis di browser pada preview maksimum 320 px menggunakan statistik mean/variance luminance, channel balance, saturation, shadow/highlight, black level, dan delapan bucket hue.
+- Match menghasilkan delta terhadap feature target, bukan menyalin pixel atau parameter reference; output dibatasi ke rentang renderer dan tetap hanya color/tonal.
+- Translation dibuat conservative untuk perbedaan scene besar; HSL hanya aktif pada hue bucket yang memiliki coverage overlap dan agreement di kedua foto.
+- Confidence diturunkan dari sample count, alpha coverage, luminance variation, dan saturation; reference terlalu kecil, transparan, atau terlalu datar tetap dapat diproses sebagai gentle approximation dengan feedback low-confidence.
+- Match intensity memakai state sebelum match sebagai base dan formula hasil analisis sebagai target; rerun tidak menambahkan match di atas match sebelumnya.
+- Remove Reference sengaja tidak membuat history entry karena tidak mengubah pixel/grade target; penerapan match dan perubahan intensity tetap dapat di-Undo/Redo.
+- Reference source disimpan in-memory dan hanya dipakai untuk preview/analisis; tidak pernah dikirim ke route Laravel. Audit network manual masih tersisa sebagai verification task.
 
 ## M5 — Export dan polish (P0)
 

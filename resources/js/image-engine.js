@@ -62,6 +62,7 @@ export const DEFAULT_DETAIL = Object.freeze({ sharpen: 0 });
 export const DEFAULT_TRANSFORM = Object.freeze({ rotation: 0, flipX: false, flipY: false });
 export const DEFAULT_CROP = Object.freeze({ mode: 'original', x: 0, y: 0, width: 1, height: 1 });
 export const DEFAULT_FRAME = Object.freeze({ style: 'none', size: 0, ratio: 'original' });
+export const DEFAULT_MATCH = Object.freeze({ id: null, intensity: 100, confidence: 0 });
 
 const preset = (id, name, adjustments = {}, effects = {}, detail = {}) => ({
     id,
@@ -98,6 +99,7 @@ export function createDefaultEditState() {
         transform: { ...DEFAULT_TRANSFORM },
         crop: { ...DEFAULT_CROP },
         frame: { ...DEFAULT_FRAME },
+        match: { ...DEFAULT_MATCH },
     };
 }
 
@@ -117,6 +119,7 @@ export function cloneEditState(state) {
         transform: { ...fallback.transform, ...state.transform },
         crop: { ...fallback.crop, ...state.crop },
         frame: { ...fallback.frame, ...state.frame },
+        match: { ...fallback.match, ...state.match },
     };
 }
 
@@ -126,6 +129,8 @@ export function editStatesEqual(left, right) {
 
     leftState.preset = { id: null, intensity: 100 };
     rightState.preset = { id: null, intensity: 100 };
+    leftState.match = { ...DEFAULT_MATCH };
+    rightState.match = { ...DEFAULT_MATCH };
 
     return JSON.stringify(leftState) === JSON.stringify(rightState);
 }
@@ -167,6 +172,172 @@ export function getPreviewSize(width, height, maxDimension = PREVIEW_MAX_DIMENSI
     };
 }
 
+export function extractImageFeatures(data, width, height) {
+    const buckets = Object.fromEntries(HSL_COLOR_DEFINITIONS.map(({ id }) => [id, {
+        count: 0,
+        saturation: 0,
+        luminance: 0,
+        hueSin: 0,
+        hueCos: 0,
+    }]));
+    const pixelCount = Math.max(1, Math.floor(data.length / 4));
+    let luminanceSum = 0;
+    let luminanceSquareSum = 0;
+    let redSum = 0;
+    let greenSum = 0;
+    let blueSum = 0;
+    let saturationSum = 0;
+    let shadowSum = 0;
+    let shadowCount = 0;
+    let highlightSum = 0;
+    let highlightCount = 0;
+    let blackLevel = 1;
+    let alphaSum = 0;
+
+    for (let index = 0; index < data.length; index += 4) {
+        const red = data[index] / 255;
+        const green = data[index + 1] / 255;
+        const blue = data[index + 2] / 255;
+        alphaSum += (data[index + 3] ?? 255) / 255;
+        const color = rgbToHsl(red, green, blue);
+        const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+
+        luminanceSum += luminance;
+        luminanceSquareSum += luminance * luminance;
+        redSum += red;
+        greenSum += green;
+        blueSum += blue;
+        saturationSum += color.saturation;
+        blackLevel = Math.min(blackLevel, luminance);
+
+        if (luminance < 0.35) {
+            shadowSum += luminance;
+            shadowCount += 1;
+        }
+        if (luminance > 0.65) {
+            highlightSum += luminance;
+            highlightCount += 1;
+        }
+
+        if (color.saturation >= 0.01) {
+            const selected = HSL_COLOR_DEFINITIONS.reduce((closest, definition) => {
+                const distance = hueDistance(color.hue, definition.hue);
+
+                return distance < closest.distance ? { definition, distance } : closest;
+            }, { definition: HSL_COLOR_DEFINITIONS[0], distance: Infinity });
+            const bucket = buckets[selected.definition.id];
+            const radians = color.hue * Math.PI / 180;
+
+            bucket.count += 1;
+            bucket.saturation += color.saturation;
+            bucket.luminance += color.lightness;
+            bucket.hueSin += Math.sin(radians);
+            bucket.hueCos += Math.cos(radians);
+        }
+    }
+
+    const meanLuminance = luminanceSum / pixelCount;
+    const variance = Math.max(0, luminanceSquareSum / pixelCount - meanLuminance ** 2);
+    const meanRed = redSum / pixelCount;
+    const meanGreen = greenSum / pixelCount;
+    const meanBlue = blueSum / pixelCount;
+
+    const meanSaturation = saturationSum / pixelCount;
+    const alphaCoverage = alphaSum / pixelCount;
+    const sampleConfidence = Math.min(1, pixelCount / 20000);
+    const distributionSignal = clamp(Math.sqrt(variance) * 7 + meanSaturation * 0.45);
+
+    return {
+        sampleCount: pixelCount,
+        meanLuminance,
+        contrast: Math.sqrt(variance),
+        temperature: clamp((meanRed - meanBlue) * 160, -100, 100),
+        tint: clamp((meanGreen - (meanRed + meanBlue) / 2) * 180, -100, 100),
+        saturation: saturationSum / pixelCount * 100,
+        shadowMean: shadowCount ? shadowSum / shadowCount : meanLuminance,
+        highlightMean: highlightCount ? highlightSum / highlightCount : meanLuminance,
+        blackLevel,
+        hsl: Object.fromEntries(HSL_COLOR_DEFINITIONS.map(({ id }) => {
+            const bucket = buckets[id];
+            const hue = bucket.count
+                ? (Math.atan2(bucket.hueSin, bucket.hueCos) * 180 / Math.PI + 360) % 360
+                : 0;
+
+            return [id, {
+                hue,
+                saturation: bucket.count ? bucket.saturation / bucket.count : 0,
+                luminance: bucket.count ? bucket.luminance / bucket.count : meanLuminance,
+                coverage: bucket.count / pixelCount,
+            }];
+        })),
+        alphaCoverage,
+        confidence: clamp(sampleConfidence * alphaCoverage * (0.1 + distributionSignal * 0.9)),
+    };
+}
+
+export function analyzeImageSource(source, maxDimension = 320) {
+    const sourceWidth = source.width ?? source.naturalWidth;
+    const sourceHeight = source.height ?? source.naturalHeight;
+    const { width, height } = getPreviewSize(sourceWidth, sourceHeight, maxDimension);
+    const canvas = document.createElement('canvas');
+
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+
+    context.drawImage(source, 0, 0, width, height);
+
+    return extractImageFeatures(context.getImageData(0, 0, width, height).data, width, height);
+}
+
+export function deriveMatchState(targetFeatures, referenceFeatures) {
+    const state = createDefaultEditState();
+    const difference = (reference, target) => reference - target;
+    const circularHueDifference = (reference, target) => ((reference - target + 540) % 360) - 180;
+
+    // Scene content can create large global luminance differences. Keep tonal
+    // translation deliberately gentle so a bright city and a dark forest do
+    // not turn into an over-corrected result.
+    state.adjustments.exposure = clamp(difference(referenceFeatures.meanLuminance, targetFeatures.meanLuminance) * 2.25, -0.9, 0.9);
+    state.adjustments.contrast = clamp(difference(referenceFeatures.contrast, targetFeatures.contrast) * 180, -45, 45);
+    state.adjustments.highlights = clamp(difference(referenceFeatures.highlightMean, targetFeatures.highlightMean) * 120, -35, 35);
+    state.adjustments.shadows = clamp(difference(referenceFeatures.shadowMean, targetFeatures.shadowMean) * 120, -35, 35);
+    state.adjustments.whites = clamp(difference(referenceFeatures.blackLevel, targetFeatures.blackLevel) * 70, -25, 25);
+    state.adjustments.temperature = clamp(difference(referenceFeatures.temperature, targetFeatures.temperature) * 0.65, -50, 50);
+    state.adjustments.tint = clamp(difference(referenceFeatures.tint, targetFeatures.tint) * 0.6, -40, 40);
+    state.adjustments.saturation = clamp(difference(referenceFeatures.saturation, targetFeatures.saturation) * 0.65, -45, 45);
+
+    for (const { id } of HSL_COLOR_DEFINITIONS) {
+        const target = targetFeatures.hsl[id];
+        const reference = referenceFeatures.hsl[id];
+        const sharedCoverage = Math.min(target.coverage, reference.coverage);
+        const coverageTotal = target.coverage + reference.coverage;
+        const coverageAgreement = coverageTotal
+            ? 1 - Math.abs(reference.coverage - target.coverage) / coverageTotal
+            : 0;
+        const coverage = clamp(sharedCoverage * 6 * coverageAgreement);
+
+        state.hsl[id].hue = clamp(circularHueDifference(reference.hue, target.hue) / 0.6 * coverage * 0.65, -65, 65);
+        state.hsl[id].saturation = clamp((reference.saturation - target.saturation) * 70 * coverage, -55, 55);
+        state.hsl[id].luminance = clamp((reference.luminance - target.luminance) * 70 * coverage, -55, 55);
+    }
+
+    const confidence = Math.min(targetFeatures.confidence, referenceFeatures.confidence);
+
+    return {
+        state,
+        confidence,
+        summary: {
+            temperature: state.adjustments.temperature,
+            tint: state.adjustments.tint,
+            contrast: state.adjustments.contrast,
+            highlights: state.adjustments.highlights,
+            shadows: state.adjustments.shadows,
+            saturation: state.adjustments.saturation,
+        },
+    };
+}
+
 export function interpolateEditStates(baseState, targetState, intensity = 1) {
     const base = cloneEditState(baseState);
     const target = cloneEditState(targetState);
@@ -195,6 +366,7 @@ export function interpolateEditStates(baseState, targetState, intensity = 1) {
     next.transform = { ...base.transform };
     next.crop = { ...base.crop };
     next.frame = { ...base.frame };
+    next.match = { ...base.match };
 
     return next;
 }

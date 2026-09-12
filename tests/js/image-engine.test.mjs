@@ -8,7 +8,9 @@ import {
     applyAdjustmentsToPixels,
     createDefaultEditState,
     createCropForMode,
+    deriveMatchState,
     editStatesEqual,
+    extractImageFeatures,
     formatAdjustmentValue,
     getPreviewSize,
     interpolateEditStates,
@@ -69,6 +71,31 @@ const presetState = { ...baseState, adjustments: { ...baseState.adjustments, con
 assert.equal(interpolateEditStates(baseState, presetState, 0).adjustments.contrast, 0, 'preset intensity 0 must stay neutral');
 assert.equal(interpolateEditStates(baseState, presetState, 1).adjustments.contrast, 40, 'preset intensity 100 must use full formula');
 assert.equal(BUILT_IN_PRESETS.length, 12, 'the built-in preset set must contain twelve formulas');
+
+const targetFeatures = extractImageFeatures(new Uint8ClampedArray([80, 90, 100, 255, 110, 120, 130, 255]), 2, 1);
+const referenceFeatures = extractImageFeatures(new Uint8ClampedArray([170, 130, 90, 255, 190, 150, 110, 255]), 2, 1);
+assert.equal(targetFeatures.sampleCount, 2, 'feature extraction must report sampled pixels');
+const matchResult = deriveMatchState(targetFeatures, referenceFeatures);
+assert.ok(matchResult.state.adjustments.exposure > 0, 'a brighter reference must produce a positive exposure delta');
+assert.ok(matchResult.state.adjustments.temperature > 0, 'a warmer reference must produce a positive temperature delta');
+assert.equal(matchResult.state.crop.mode, 'original', 'matching must not change target geometry');
+assert.ok(matchResult.confidence < 0.25, 'tiny samples must produce low-confidence match feedback');
+
+const transparentFeatures = extractImageFeatures(new Uint8ClampedArray([255, 0, 0, 0]), 1, 1);
+assert.equal(transparentFeatures.alphaCoverage, 0, 'transparent pixels must be detected');
+assert.equal(transparentFeatures.confidence, 0, 'transparent references must have zero confidence');
+
+const flatFeatures = extractImageFeatures(new Uint8ClampedArray([
+    128, 128, 128, 255,
+    128, 128, 128, 255,
+]), 2, 1);
+assert.ok(flatFeatures.confidence < 0.25, 'flat references must produce low-confidence feedback');
+
+const redFeatures = extractImageFeatures(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1);
+const blueFeatures = extractImageFeatures(new Uint8ClampedArray([0, 0, 255, 255]), 1, 1);
+const dissimilarColorMatch = deriveMatchState(redFeatures, blueFeatures);
+assert.equal(dissimilarColorMatch.state.hsl.red.hue, 0, 'HSL must ignore a color bucket missing from the reference');
+assert.ok(Math.abs(dissimilarColorMatch.state.hsl.blue.hue) < Number.EPSILON, 'HSL must ignore a color bucket missing from the target');
 
 assert.deepEqual(getPreviewSize(4000, 2000, 1800), { width: 1800, height: 900, scale: 0.45 });
 assert.equal(formatAdjustmentValue(0.3, 2), '+0.30');

@@ -27,9 +27,11 @@ import {
     EFFECT_DEFINITIONS,
     HSL_COLOR_DEFINITIONS,
     HSL_CONTROL_DEFINITIONS,
+    analyzeImageSource,
     cloneEditState,
     createCropForMode,
     createDefaultEditState,
+    deriveMatchState,
     decodeImageFile,
     editStatesEqual,
     formatAdjustmentValue,
@@ -103,6 +105,20 @@ window.editorShell = () => ({
     presetBaseState: null,
     presetName: '',
     presetError: '',
+    referenceSource: null,
+    referenceFileName: '',
+    referenceDimensions: { width: 0, height: 0 },
+    referenceFeatures: null,
+    referenceError: '',
+    referenceLoading: false,
+    referenceDragActive: false,
+    matchStatus: 'idle',
+    matchError: '',
+    matchConfidence: 0,
+    matchSummary: null,
+    matchIntensity: 100,
+    matchBaseState: null,
+    matchFormulaState: null,
     _renderFrame: null,
     init() {
         this.history = [cloneEditState(this.editState)];
@@ -111,6 +127,9 @@ window.editorShell = () => ({
     },
     get hasImage() {
         return Boolean(this.source);
+    },
+    get hasReference() {
+        return Boolean(this.referenceSource);
     },
     get isDirty() {
         return !editStatesEqual(this.editState, this.initialState);
@@ -176,6 +195,7 @@ window.editorShell = () => ({
         this.scheduleRender();
 
         if (toolId === 'presets') this.$nextTick(() => this.renderPresetThumbnails());
+        if (toolId === 'match') this.$nextTick(() => this.renderMatchPreviews());
     },
     selectHslColor(colorId) {
         this.activeHslColor = colorId;
@@ -209,6 +229,25 @@ window.editorShell = () => ({
 
             renderPreview({ source: this.source, canvas, editState: state, maxDimension: 360 });
         });
+    },
+    renderMatchPreviews() {
+        if (this.source && this.$refs.matchTargetCanvas) {
+            renderPreview({
+                source: this.source,
+                canvas: this.$refs.matchTargetCanvas,
+                editState: this.editState,
+                maxDimension: 520,
+            });
+        }
+
+        if (this.referenceSource && this.$refs.matchReferenceCanvas) {
+            renderPreview({
+                source: this.referenceSource,
+                canvas: this.$refs.matchReferenceCanvas,
+                editState: createDefaultEditState(),
+                maxDimension: 520,
+            });
+        }
     },
     async selectFile(event) {
         const file = event.target.files?.[0];
@@ -250,6 +289,13 @@ window.editorShell = () => ({
             this.presetBaseState = null;
             this.presetIntensity = 100;
             this.cropDrag = null;
+            this.matchStatus = 'idle';
+            this.matchError = '';
+            this.matchConfidence = 0;
+            this.matchSummary = null;
+            this.matchIntensity = 100;
+            this.matchBaseState = null;
+            this.matchFormulaState = null;
             this.zoom = 1;
             this.panX = 0;
             this.panY = 0;
@@ -257,6 +303,7 @@ window.editorShell = () => ({
             await this.$nextTick();
             this.scheduleRender();
             this.renderPresetThumbnails();
+            this.renderMatchPreviews();
         } catch (loadError) {
             this.error = loadError.message || "This image couldn't be opened. Try a JPG, PNG, or WebP file.";
         } finally {
@@ -310,6 +357,13 @@ window.editorShell = () => ({
         this.editState = cloneEditState(snapshot);
         this.activePresetId = this.editState.preset.id;
         this.presetIntensity = this.editState.preset.intensity;
+        this.matchStatus = this.editState.match.id ? 'matched' : 'idle';
+        this.matchIntensity = this.editState.match.intensity;
+        if (!this.editState.match.id) {
+            this.matchBaseState = null;
+            this.matchFormulaState = null;
+            this.matchSummary = null;
+        }
         this.scheduleRender();
     },
     undo() {
@@ -572,6 +626,150 @@ window.editorShell = () => ({
         this.pushHistory();
         this.scheduleRender();
     },
+    async selectReferenceFile(event) {
+        const file = event.target.files?.[0];
+
+        await this.loadReference(file);
+        event.target.value = '';
+    },
+    async handleReferenceDrop(event) {
+        this.referenceDragActive = false;
+        await this.loadReference(event.dataTransfer.files?.[0]);
+    },
+    async loadReference(file) {
+        if (!this.hasImage) {
+            this.referenceError = 'Open a target photo before adding a reference.';
+            return;
+        }
+
+        const validation = validateImageFile(file);
+
+        if (!validation.valid) {
+            this.referenceError = validation.error;
+            return;
+        }
+
+        this.referenceError = '';
+        this.referenceLoading = true;
+        this.matchStatus = 'idle';
+
+        let decodedSource = null;
+
+        try {
+            decodedSource = await decodeImageFile(file);
+            const features = analyzeImageSource(decodedSource);
+
+            releaseImageSource(this.referenceSource);
+            this.referenceSource = decodedSource;
+            decodedSource = null;
+            this.referenceFileName = file.name;
+            this.referenceDimensions = {
+                width: this.referenceSource.width ?? this.referenceSource.naturalWidth,
+                height: this.referenceSource.height ?? this.referenceSource.naturalHeight,
+            };
+            this.referenceFeatures = features;
+            this.matchError = '';
+            await this.$nextTick();
+            this.renderMatchPreviews();
+        } catch (loadError) {
+            releaseImageSource(decodedSource);
+            this.referenceError = loadError.message || "This image couldn't be opened. Try a JPG, PNG, or WebP file.";
+        } finally {
+            this.referenceLoading = false;
+        }
+    },
+    chooseReferenceFile() {
+        if (!this.hasImage) {
+            this.referenceError = 'Open a target photo before adding a reference.';
+            return;
+        }
+
+        this.$refs.referenceFileInput.click();
+    },
+    get referenceFileLabel() {
+        if (!this.referenceFileName) return 'No reference selected';
+
+        return `${this.referenceFileName} · ${this.referenceDimensions.width}×${this.referenceDimensions.height}`;
+    },
+    get matchIsLowConfidence() {
+        return this.matchConfidence > 0 && this.matchConfidence < 0.25;
+    },
+    async runMatch() {
+        if (!this.source || !this.referenceSource || this.referenceLoading) return;
+
+        this.matchStatus = 'matching';
+        this.matchError = '';
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        try {
+            const targetFeatures = analyzeImageSource(this.source);
+            const referenceFeatures = this.referenceFeatures ?? analyzeImageSource(this.referenceSource);
+            const result = deriveMatchState(targetFeatures, referenceFeatures);
+            const baseState = this.matchBaseState ? cloneEditState(this.matchBaseState) : cloneEditState(this.editState);
+            const matchId = `match-${Date.now()}`;
+
+            this.matchBaseState = baseState;
+            this.matchFormulaState = cloneEditState(result.state);
+            this.matchFormulaState.match = {
+                id: matchId,
+                intensity: 100,
+                confidence: result.confidence,
+            };
+            this.matchConfidence = result.confidence;
+            this.matchSummary = result.summary;
+            this.matchIntensity = 100;
+            this.editState = interpolateEditStates(baseState, this.matchFormulaState, 1);
+            this.editState.match = {
+                id: matchId,
+                intensity: 100,
+                confidence: result.confidence,
+            };
+            this.matchStatus = 'matched';
+            this.pushHistory();
+            this.scheduleRender();
+            this.renderMatchPreviews();
+        } catch (matchError) {
+            this.matchStatus = 'error';
+            this.matchError = matchError.message || 'The local match could not be completed.';
+        }
+    },
+    setMatchIntensity(value) {
+        if (!this.matchBaseState || !this.matchFormulaState) return;
+
+        this.matchIntensity = Number(value);
+        const matchId = this.editState.match.id || this.matchFormulaState.match.id;
+        this.editState = interpolateEditStates(this.matchBaseState, this.matchFormulaState, this.matchIntensity / 100);
+        this.editState.match = {
+            id: matchId,
+            intensity: this.matchIntensity,
+            confidence: this.matchConfidence,
+        };
+        this.scheduleRender();
+        this.renderMatchPreviews();
+    },
+    commitMatchIntensity() {
+        this.pushHistory();
+    },
+    goToAdjust() {
+        this.activateTool('adjust');
+    },
+    removeReference() {
+        releaseImageSource(this.referenceSource);
+        this.referenceSource = null;
+        this.referenceFileName = '';
+        this.referenceDimensions = { width: 0, height: 0 };
+        this.referenceFeatures = null;
+        this.referenceError = '';
+        this.matchStatus = 'idle';
+        this.matchError = '';
+        this.matchConfidence = 0;
+        this.matchSummary = null;
+        this.matchIntensity = 100;
+        this.matchBaseState = null;
+        this.matchFormulaState = null;
+        this.editState.match = { id: null, intensity: 100, confidence: 0 };
+        this.renderMatchPreviews();
+    },
     presetFormula(presetItem) {
         return presetItem.state ?? presetItem;
     },
@@ -679,7 +877,9 @@ window.editorShell = () => ({
     cleanup() {
         if (this._renderFrame) cancelAnimationFrame(this._renderFrame);
         releaseImageSource(this.source);
+        releaseImageSource(this.referenceSource);
         this.source = null;
+        this.referenceSource = null;
     },
     destroy() {
         this.cleanup();

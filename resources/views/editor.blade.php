@@ -244,7 +244,55 @@
                             <button type="button" class="reset-all-button" :disabled="!hasImage" @click="resetFrame()">Reset frame</button>
                         </div>
                     </div>
-                    <div x-show="!['adjust', 'presets', 'crop', 'frame'].includes(activeTool)" class="panel-empty" x-cloak>
+                    <div x-show="activeTool === 'match'" class="match-content" x-cloak>
+                        <div class="match-preview-grid">
+                            <figure class="match-preview-card">
+                                <div class="match-preview-media">
+                                    <canvas x-ref="matchTargetCanvas" x-show="hasImage" aria-label="Target photo preview"></canvas>
+                                    <span class="match-preview-placeholder" x-show="!hasImage">Target</span>
+                                </div>
+                                <figcaption><span>Your photo</span><small x-text="hasImage ? fileLabel : 'Upload a target first'"></small></figcaption>
+                            </figure>
+                            <figure class="match-preview-card">
+                                <div class="match-preview-media">
+                                    <canvas x-ref="matchReferenceCanvas" x-show="hasReference" aria-label="Reference photo preview"></canvas>
+                                    <span class="match-preview-placeholder" x-show="!hasReference">Reference</span>
+                                </div>
+                                <figcaption><span>Reference</span><small x-text="referenceFileLabel"></small></figcaption>
+                            </figure>
+                        </div>
+                        <div class="reference-dropzone" :class="{ 'is-dragging': referenceDragActive }" @dragover.prevent="referenceDragActive = true" @dragleave.prevent="referenceDragActive = false" @drop.prevent="handleReferenceDrop($event)">
+                            <input x-ref="referenceFileInput" type="file" class="visually-hidden" accept="image/jpeg,image/png,image/webp" @change="selectReferenceFile($event)">
+                            <span class="reference-dropzone-label">Add a reference photo</span>
+                            <button type="button" class="button button--light button--small" :disabled="!hasImage" @click="chooseReferenceFile()">Choose Reference</button>
+                            <span class="reference-dropzone-meta">JPG, PNG or WebP · stays in this browser</span>
+                        </div>
+                        <p class="match-error" x-show="referenceError" x-text="referenceError" role="alert"></p>
+                        <p class="match-error" x-show="matchError" x-text="matchError" role="alert"></p>
+                        <div class="match-action-row">
+                            <button type="button" class="button button--light button--small" :disabled="!hasImage || !hasReference || referenceLoading || matchStatus === 'matching'" @click="runMatch()">
+                                <span x-show="matchStatus !== 'matching'">Match grade</span>
+                                <span x-show="matchStatus === 'matching'">Matching…</span>
+                            </button>
+                            <button type="button" class="match-remove" :disabled="!hasReference" @click="removeReference()">Remove reference</button>
+                        </div>
+                        <div class="match-status" x-show="matchStatus === 'matching'" aria-live="polite"><span class="status-spinner" aria-hidden="true"></span>Matching color grade…</div>
+                        <div class="match-result" x-show="matchFormulaState" x-cloak>
+                            <div class="match-intensity-heading"><span>Match intensity</span><output class="adjustment-value" x-text="`${matchIntensity}%`"></output></div>
+                            <input class="adjustment-slider" type="range" min="0" max="100" step="1" :value="matchIntensity" aria-label="Match intensity" @input="setMatchIntensity($event.target.value)" @change="commitMatchIntensity()">
+                            <div class="slider-range" aria-hidden="true"><span>0</span><span>100</span></div>
+                            <p class="match-result-label">Grade matched <span x-text="`· ${Math.round(matchConfidence * 100)}% confidence`"></span></p>
+                            <p class="match-low-confidence" x-show="matchIsLowConfidence">Reference is small or visually uniform, so this is a gentle approximation.</p>
+                            <div class="match-summary" x-show="matchSummary">
+                                <span>Temperature <b x-text="formatAdjustmentValue(matchSummary?.temperature ?? 0, 0)"></b></span>
+                                <span>Contrast <b x-text="formatAdjustmentValue(matchSummary?.contrast ?? 0, 0)"></b></span>
+                                <span>Saturation <b x-text="formatAdjustmentValue(matchSummary?.saturation ?? 0, 0)"></b></span>
+                            </div>
+                            <button type="button" class="match-fine-tune" @click="goToAdjust()">Fine-tune in Adjust</button>
+                        </div>
+                        <p class="match-limitation">Match reproduces the overall color grading character; it does not guarantee an identical result. Lighting, camera, exposure, environment, skin tone, time of day, and dynamic range can change the outcome.</p>
+                    </div>
+                    <div x-show="!['adjust', 'presets', 'crop', 'frame', 'match'].includes(activeTool)" class="panel-empty" x-cloak>
                         <p><span x-text="panelTitle"></span> will appear here once a photo is loaded.</p>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ import {
     DEFAULT_FRAME,
     DEFAULT_ADJUSTMENTS,
     DEFAULT_HSL,
+    MAX_SOURCE_PIXELS,
     EXPORT_FORMAT_DEFINITIONS,
     EXPORT_SIZE_DEFINITIONS,
     applyAdjustmentsToPixels,
@@ -12,13 +13,16 @@ import {
     createDefaultEditState,
     createCropForMode,
     deriveMatchState,
+    deserializeEditState,
     editStatesEqual,
     extractImageFeatures,
     formatAdjustmentValue,
     getExportDimensions,
     getPreviewSize,
     interpolateEditStates,
+    serializeEditState,
     validateImageFile,
+    validateImageDimensions,
 } from '../../resources/js/image-engine.js';
 
 const neutralPixels = new Uint8ClampedArray([30, 90, 180, 255, 240, 120, 20, 128]);
@@ -136,6 +140,28 @@ const state = createDefaultEditState();
 assert.equal(editStatesEqual(state, createDefaultEditState()), true);
 state.adjustments.contrast = 10;
 assert.equal(editStatesEqual(state, createDefaultEditState()), false);
+assert.deepEqual(Object.keys(createDefaultEditState()), [
+    'version',
+    'adjustments',
+    'hsl',
+    'effects',
+    'detail',
+    'preset',
+    'transform',
+    'crop',
+    'frame',
+    'match',
+], 'edit state must keep its versioned schema');
+assert.equal(deserializeEditState('{not-json').version, 3, 'corrupt serialized state must fall back safely');
+const serializedState = serializeEditState(state);
+const restoredState = deserializeEditState(serializedState);
+assert.equal(restoredState.adjustments.contrast, 10, 'serialized edit state must round-trip parameters');
+restoredState.adjustments.contrast = -40;
+assert.equal(state.adjustments.contrast, 10, 'deserialized state must be independent');
+assert.equal(validateImageDimensions(4000, 3000).valid, true);
+assert.equal(validateImageDimensions(12001, 100).valid, false);
+assert.equal(validateImageDimensions(Math.ceil(MAX_SOURCE_PIXELS / 1000) + 1, 1000).valid, false);
+assert.equal(validateImageDimensions(0, 1000).valid, false);
 
 const squareCrop = createCropForMode('1:1', 4000, 2000);
 assert.equal(squareCrop.width, 0.5, '1:1 crop must fit the source aspect ratio');

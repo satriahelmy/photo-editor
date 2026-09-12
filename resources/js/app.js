@@ -39,6 +39,7 @@ import {
     createDefaultEditState,
     deriveMatchState,
     decodeImageFile,
+    deserializeEditState,
     editStatesEqual,
     formatAdjustmentValue,
     getExportDimensions,
@@ -46,6 +47,7 @@ import {
     releaseImageSource,
     renderExportCanvas,
     renderPreview,
+    serializeEditState,
     validateImageFile,
 } from './image-engine';
 
@@ -102,6 +104,7 @@ window.editorShell = () => ({
     editState: createDefaultEditState(),
     initialState: createDefaultEditState(),
     history: [],
+    historyContexts: [],
     historyIndex: -1,
     source: null,
     sourceFileName: '',
@@ -152,8 +155,11 @@ window.editorShell = () => ({
     exportTrigger: null,
     _exportEstimateFrame: null,
     _renderFrame: null,
+    _loadRequestToken: 0,
+    _referenceRequestToken: 0,
     init() {
         this.history = [cloneEditState(this.editState)];
+        this.historyContexts = [this.historyContextSnapshot()];
         this.historyIndex = 0;
         this.loadCustomPresets();
     },
@@ -509,6 +515,7 @@ window.editorShell = () => ({
         await this.loadFile(event.dataTransfer.files?.[0]);
     },
     async loadFile(file) {
+        const requestToken = ++this._loadRequestToken;
         const validation = validateImageFile(file);
 
         if (!validation.valid) {
@@ -522,7 +529,13 @@ window.editorShell = () => ({
         try {
             const source = await decodeImageFile(file);
 
+            if (requestToken !== this._loadRequestToken) {
+                releaseImageSource(source);
+                return;
+            }
+
             releaseImageSource(this.source);
+            this.clearReferenceState();
             this.source = source;
             this.sourceFileName = file.name;
             this.sourceDimensions = {
@@ -545,6 +558,7 @@ window.editorShell = () => ({
             this.matchIntensity = 100;
             this.matchBaseState = null;
             this.matchFormulaState = null;
+            this.historyContexts = [this.historyContextSnapshot()];
             this.zoom = 1;
             this.panX = 0;
             this.panY = 0;
@@ -587,6 +601,14 @@ window.editorShell = () => ({
         this.controlsForSection(section).forEach((control) => this.updateControl(control, 0));
         this.pushHistory();
     },
+    historyContextSnapshot() {
+        return {
+            presetBaseState: this.presetBaseState ? cloneEditState(this.presetBaseState) : null,
+            matchBaseState: this.matchBaseState ? cloneEditState(this.matchBaseState) : null,
+            matchFormulaState: this.matchFormulaState ? cloneEditState(this.matchFormulaState) : null,
+            matchSummary: this.matchSummary ? { ...this.matchSummary } : null,
+        };
+    },
     pushHistory() {
         const current = cloneEditState(this.editState);
         const previous = this.history[this.historyIndex];
@@ -594,24 +616,33 @@ window.editorShell = () => ({
         if (previous && editStatesEqual(previous, current)) return;
 
         this.history = this.history.slice(0, this.historyIndex + 1);
+        this.historyContexts = this.historyContexts.slice(0, this.historyIndex + 1);
         this.history.push(current);
+        this.historyContexts.push(this.historyContextSnapshot());
         this.historyIndex = this.history.length - 1;
     },
     applyHistory(index) {
         const snapshot = this.history[index];
+        const context = this.historyContexts[index];
 
         if (!snapshot) return;
 
         this.historyIndex = index;
         this.editState = cloneEditState(snapshot);
         this.activePresetId = this.editState.preset.id;
-        this.presetIntensity = this.editState.preset.intensity;
+        this.presetIntensity = this.activePresetId ? this.editState.preset.intensity : 100;
+        this.presetBaseState = context?.presetBaseState ? cloneEditState(context.presetBaseState) : null;
         this.matchStatus = this.editState.match.id ? 'matched' : 'idle';
-        this.matchIntensity = this.editState.match.intensity;
-        if (!this.editState.match.id) {
+        this.matchIntensity = this.editState.match.id ? this.editState.match.intensity : 100;
+        this.matchConfidence = this.editState.match.id ? this.editState.match.confidence : 0;
+        this.matchBaseState = context?.matchBaseState ? cloneEditState(context.matchBaseState) : null;
+        this.matchFormulaState = context?.matchFormulaState ? cloneEditState(context.matchFormulaState) : null;
+        this.matchSummary = context?.matchSummary ? { ...context.matchSummary } : null;
+        if (!this.editState.match.id || !this.matchBaseState || !this.matchFormulaState) {
             this.matchBaseState = null;
             this.matchFormulaState = null;
             this.matchSummary = null;
+            this.matchConfidence = 0;
         }
         this.scheduleRender();
     },
@@ -629,6 +660,13 @@ window.editorShell = () => ({
         this.activePresetId = null;
         this.presetBaseState = null;
         this.presetIntensity = 100;
+        this.matchStatus = 'idle';
+        this.matchError = '';
+        this.matchConfidence = 0;
+        this.matchSummary = null;
+        this.matchIntensity = 100;
+        this.matchBaseState = null;
+        this.matchFormulaState = null;
         this.pushHistory();
         this.scheduleRender();
     },
@@ -886,8 +924,11 @@ window.editorShell = () => ({
         await this.loadReference(event.dataTransfer.files?.[0]);
     },
     async loadReference(file) {
+        const requestToken = ++this._referenceRequestToken;
+
         if (!this.hasImage) {
             this.referenceError = 'Open a target photo before adding a reference.';
+            this.referenceLoading = false;
             return;
         }
 
@@ -908,6 +949,12 @@ window.editorShell = () => ({
             decodedSource = await decodeImageFile(file);
             const features = analyzeImageSource(decodedSource);
 
+            if (requestToken !== this._referenceRequestToken || !this.hasImage) {
+                releaseImageSource(decodedSource);
+                decodedSource = null;
+                return;
+            }
+
             releaseImageSource(this.referenceSource);
             this.referenceSource = decodedSource;
             decodedSource = null;
@@ -922,9 +969,12 @@ window.editorShell = () => ({
             this.renderMatchPreviews();
         } catch (loadError) {
             releaseImageSource(decodedSource);
-            this.referenceError = loadError.message || "This image couldn't be opened. Try a JPG, PNG, or WebP file.";
+
+            if (requestToken === this._referenceRequestToken) {
+                this.referenceError = loadError.message || "This image couldn't be opened. Try a JPG, PNG, or WebP file.";
+            }
         } finally {
-            this.referenceLoading = false;
+            if (requestToken === this._referenceRequestToken) this.referenceLoading = false;
         }
     },
     chooseReferenceFile() {
@@ -1003,12 +1053,7 @@ window.editorShell = () => ({
         this.activateTool('adjust');
     },
     removeReference() {
-        releaseImageSource(this.referenceSource);
-        this.referenceSource = null;
-        this.referenceFileName = '';
-        this.referenceDimensions = { width: 0, height: 0 };
-        this.referenceFeatures = null;
-        this.referenceError = '';
+        this.clearReferenceState();
         this.matchStatus = 'idle';
         this.matchError = '';
         this.matchConfidence = 0;
@@ -1018,6 +1063,16 @@ window.editorShell = () => ({
         this.matchFormulaState = null;
         this.editState.match = { id: null, intensity: 100, confidence: 0 };
         this.renderMatchPreviews();
+    },
+    clearReferenceState() {
+        this._referenceRequestToken += 1;
+        releaseImageSource(this.referenceSource);
+        this.referenceSource = null;
+        this.referenceFileName = '';
+        this.referenceDimensions = { width: 0, height: 0 };
+        this.referenceFeatures = null;
+        this.referenceError = '';
+        this.referenceLoading = false;
     },
     presetFormula(presetItem) {
         return presetItem.state ?? presetItem;
@@ -1052,7 +1107,7 @@ window.editorShell = () => ({
                     version: 1,
                     id: item.id,
                     name: item.name,
-                    state: cloneEditState(item.state),
+                    state: deserializeEditState(item.state),
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                 }))
@@ -1063,7 +1118,12 @@ window.editorShell = () => ({
     },
     persistCustomPresets() {
         try {
-            window.localStorage.setItem(CUSTOM_PRESET_STORAGE_KEY, JSON.stringify(this.customPresets));
+            const payload = this.customPresets.map((item) => ({
+                ...item,
+                state: serializeEditState(item.state),
+            }));
+
+            window.localStorage.setItem(CUSTOM_PRESET_STORAGE_KEY, JSON.stringify(payload));
             return true;
         } catch {
             this.presetError = 'Custom preset storage is unavailable or full.';
@@ -1088,7 +1148,7 @@ window.editorShell = () => ({
             version: 1,
             id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             name,
-            state: cloneEditState({ ...this.editState, preset: { id: null, intensity: 100 } }),
+            state: deserializeEditState({ ...this.editState, preset: { id: null, intensity: 100 } }),
             createdAt: now,
             updatedAt: now,
         };
@@ -1124,6 +1184,9 @@ window.editorShell = () => ({
         this.persistCustomPresets();
     },
     cleanup() {
+        this._loadRequestToken += 1;
+        this._referenceRequestToken += 1;
+
         if (this._renderFrame) cancelAnimationFrame(this._renderFrame);
         if (this._exportEstimateFrame) cancelAnimationFrame(this._exportEstimateFrame);
         if (this._editFeedbackTimer) clearTimeout(this._editFeedbackTimer);

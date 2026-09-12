@@ -269,6 +269,30 @@ Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail
 - PNG/WebP mempertahankan alpha bila tersedia; JPEG diflatten ke putih karena formatnya tidak mendukung transparansi.
 - Canvas export tidak membawa source metadata atau watermark; download dibuat in-memory dengan MIME dan extension sesuai format.
 
+## M6 — QA hardening
+
+### State, lifecycle, dan resource safety
+
+- [x] Batalkan secara logis proses decode target/reference yang sudah stale ketika user memilih file lain.
+- [x] Lepaskan `ImageBitmap` hasil decode yang selesai setelah request dibatalkan.
+- [x] Bersihkan reference lama ketika target image diganti agar style source tidak tertukar antar foto.
+- [x] Tambahkan batas total pixel source untuk mengurangi risiko resource exhaustion pada image berdimensi ekstrem.
+- [x] Simpan dan pulihkan context preset/match bersama history agar Undo/Redo tidak mematahkan fine-tuning intensity.
+- [x] Gunakan serialisasi edit state versioned dengan fallback aman untuk data custom preset yang rusak.
+
+### Automated verification
+
+- [x] Uji schema edit state, serialisasi/deserialisasi, copy snapshot, HSL/crop transfer, dan batas dimensi.
+- [x] Jalankan regression test engine, production build, PHP test, view cache, formatter, dan diff check.
+- [ ] Verifikasi network secara manual di browser untuk memastikan workflow target/reference tetap local-only.
+
+### M6 decision log — 2026-09-12
+
+- Request token dipakai untuk mencegah hasil async lama menggantikan target/reference terbaru; resource hasil request stale tetap ditutup.
+- Source dibatasi maksimal 60 megapixel selain batas 12.000 px per sisi dan 30 MB per file.
+- History menyimpan context non-pixel untuk preset/match sehingga slider intensity dapat dipakai lagi setelah Undo/Redo.
+- Custom preset memakai serializer state yang toleran terhadap format object lama dan data JSON rusak tanpa memblokir editor.
+
 ### Histogram (conditional)
 
 - [ ] Benchmark biaya histogram sebelum memasukkannya ke editor.

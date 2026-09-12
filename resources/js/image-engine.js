@@ -1,5 +1,6 @@
 export const MAX_FILE_BYTES = 30 * 1024 * 1024;
 export const MAX_SOURCE_DIMENSION = 12000;
+export const MAX_SOURCE_PIXELS = 60 * 1000 * 1000;
 export const PREVIEW_MAX_DIMENSION = 1800;
 
 export const SUPPORTED_IMAGE_TYPES = Object.freeze([
@@ -145,6 +146,24 @@ export function copyEditState(state) {
     return snapshot;
 }
 
+export function serializeEditState(state) {
+    return JSON.stringify(cloneEditState(state));
+}
+
+export function deserializeEditState(value) {
+    try {
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return createDefaultEditState();
+        }
+
+        return cloneEditState(parsed);
+    } catch {
+        return createDefaultEditState();
+    }
+}
+
 export function editStatesEqual(left, right) {
     const leftState = cloneEditState(left);
     const rightState = cloneEditState(right);
@@ -179,6 +198,18 @@ export function validateImageFile(file) {
 
     if (file.size > MAX_FILE_BYTES) {
         return { valid: false, error: 'This image is too large. Try a file smaller than 30 MB.' };
+    }
+
+    return { valid: true, error: '' };
+}
+
+export function validateImageDimensions(width, height) {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
+        return { valid: false, error: "This image couldn't be opened. Try a JPG, PNG, or WebP file." };
+    }
+
+    if (width > MAX_SOURCE_DIMENSION || height > MAX_SOURCE_DIMENSION || width * height > MAX_SOURCE_PIXELS) {
+        return { valid: false, error: 'This image has very large dimensions. Try a smaller photo.' };
     }
 
     return { valid: true, error: '' };
@@ -607,10 +638,11 @@ export function applyAdjustmentsToPixels(data, adjustments, renderOptions = {}) 
 export async function decodeImageFile(file) {
     if ('createImageBitmap' in window) {
         const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        const validation = validateImageDimensions(bitmap.width, bitmap.height);
 
-        if (bitmap.width > MAX_SOURCE_DIMENSION || bitmap.height > MAX_SOURCE_DIMENSION) {
+        if (!validation.valid) {
             bitmap.close();
-            throw new Error('This image has very large dimensions. Try a smaller photo.');
+            throw new Error(validation.error);
         }
 
         return bitmap;
@@ -628,8 +660,10 @@ export async function decodeImageFile(file) {
             element.src = objectUrl;
         });
 
-        if (image.naturalWidth > MAX_SOURCE_DIMENSION || image.naturalHeight > MAX_SOURCE_DIMENSION) {
-            throw new Error('This image has very large dimensions. Try a smaller photo.');
+        const validation = validateImageDimensions(image.naturalWidth, image.naturalHeight);
+
+        if (!validation.valid) {
+            throw new Error(validation.error);
         }
 
         return image;

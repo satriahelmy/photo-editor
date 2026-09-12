@@ -64,48 +64,56 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### Import dan lifecycle image
 
-- [ ] Implementasikan input file untuk JPG/JPEG, PNG, dan WebP.
-- [ ] Implementasikan drag-and-drop dan browse alternative yang sama-sama dapat digunakan keyboard.
-- [ ] Validasi MIME/content file, ekstensi, ukuran, dan dimensi; tampilkan error direct jika file tidak dapat dibuka.
-- [ ] Implementasikan replace image dengan konfirmasi/behavior yang tidak menghilangkan pekerjaan secara tidak sengaja.
-- [ ] Simpan original sebagai source immutable di memory browser; jangan mengirim target ke Laravel.
-- [ ] Buat preview source yang di-downscale dengan mempertahankan aspect ratio.
-- [ ] Revoke object URL dan release bitmap/canvas resource saat image diganti atau editor ditutup.
+- [x] Implementasikan input file untuk JPG/JPEG, PNG, dan WebP.
+- [x] Implementasikan drag-and-drop dan browse alternative yang sama-sama dapat digunakan keyboard.
+- [x] Validasi MIME/content file, ekstensi, ukuran, dan dimensi; tampilkan error direct jika file tidak dapat dibuka.
+- [x] Implementasikan replace image dengan konfirmasi/behavior yang tidak menghilangkan pekerjaan secara tidak sengaja.
+- [x] Simpan original sebagai source immutable di memory browser; jangan mengirim target ke Laravel.
+- [x] Buat preview source yang di-downscale dengan mempertahankan aspect ratio.
+- [x] Revoke object URL dan release bitmap/canvas resource saat image diganti atau editor ditutup.
 
 ### State dan renderer
 
-- [ ] Implementasikan single source of truth untuk edit state dan derived render state.
+- [x] Implementasikan single source of truth untuk edit state dan derived render state.
 - [ ] Pisahkan original, preview, edited preview, dan export render.
-- [ ] Implementasikan renderer yang menerima image source + parameter dan menghasilkan preview canvas.
-- [ ] Implementasikan fit-to-workspace dengan aspect ratio yang benar.
-- [ ] Implementasikan zoom in, zoom out, zoom percentage, Fit, dan pan tanpa mengubah pixel source.
-- [ ] Gunakan `requestAnimationFrame`/strategi setara agar slider tidak memicu render berulang yang tidak perlu.
-- [ ] Pastikan canvas tetap menjadi area visual terbesar dan tidak diberi dekorasi yang mengganggu foto.
+- [x] Implementasikan renderer yang menerima image source + parameter dan menghasilkan preview canvas.
+- [x] Implementasikan fit-to-workspace dengan aspect ratio yang benar.
+- [x] Implementasikan zoom in, zoom out, zoom percentage, Fit, dan pan tanpa mengubah pixel source.
+- [x] Gunakan `requestAnimationFrame`/strategi setara agar slider tidak memicu render berulang yang tidak perlu.
+- [x] Pastikan canvas tetap menjadi area visual terbesar dan tidak diberi dekorasi yang mengganggu foto.
 
 ### Basic adjustments
 
-- [ ] Implementasikan section Light: Exposure/Brightness, Contrast, Highlights, Shadows, Whites, Blacks.
-- [ ] Implementasikan section Color: Temperature, Tint, Saturation.
-- [ ] Render semua adjustment secara real-time pada preview resolution.
-- [ ] Pastikan setiap adjustment memiliki label, numeric value, neutral default, min/max, step, dan reset per-control.
-- [ ] Buat slider thin dengan handle jelas, appearance neutral, value visible, dan keyboard arrow support.
-- [ ] Implementasikan double-click/double-tap pada slider untuk mengembalikan nilai neutral.
-- [ ] Pastikan slider touch target cukup besar di mobile meskipun track visual tetap thin.
-- [ ] Pastikan Exposure, contrast, temperature, dan parameter lain menggunakan color/tone math yang konsisten dan diuji.
+- [x] Implementasikan section Light: Exposure/Brightness, Contrast, Highlights, Shadows, Whites, Blacks.
+- [x] Implementasikan section Color: Temperature, Tint, Saturation.
+- [x] Render semua adjustment secara real-time pada preview resolution.
+- [x] Pastikan setiap adjustment memiliki label, numeric value, neutral default, min/max, step, dan reset per-control.
+- [x] Buat slider thin dengan handle jelas, appearance neutral, value visible, dan keyboard arrow support.
+- [x] Implementasikan double-click/double-tap pada slider untuk mengembalikan nilai neutral.
+- [x] Pastikan slider touch target cukup besar di mobile meskipun track visual tetap thin.
+- [x] Pastikan Exposure, contrast, temperature, dan parameter lain menggunakan color/tone math yang konsisten dan diuji.
 
 ### Before / After, reset, dan history
 
-- [ ] Implementasikan Before/After press-and-hold di desktop.
-- [ ] Implementasikan Before/After press-and-hold pada preview di mobile.
-- [ ] Saat ditahan, tampilkan original sesuai behavior yang disepakati; saat dilepas, kembali ke edited preview secara instant.
-- [ ] Implementasikan Undo dan Redo untuk adjustment.
-- [ ] Coalesce perubahan slider dalam satu gesture menjadi satu history entry, bukan satu entry per pointer movement.
-- [ ] Invalidate redo stack ketika user membuat perubahan baru setelah Undo.
-- [ ] Implementasikan Reset Adjustment untuk satu control/section sesuai konteks aktif.
-- [ ] Implementasikan Reset All ke kondisi original.
-- [ ] Minta konfirmasi sebelum Reset All bila ada edit yang belum diexport.
-- [ ] Tampilkan disabled state yang jelas saat Undo/Redo tidak tersedia.
-- [ ] Jangan persist history setelah browser session berakhir.
+- [x] Implementasikan Before/After press-and-hold di desktop.
+- [x] Implementasikan Before/After press-and-hold pada preview di mobile.
+- [x] Saat ditahan, tampilkan original sesuai behavior yang disepakati; saat dilepas, kembali ke edited preview secara instant.
+- [x] Implementasikan Undo dan Redo untuk adjustment.
+- [x] Coalesce perubahan slider dalam satu gesture menjadi satu history entry, bukan satu entry per pointer movement.
+- [x] Invalidate redo stack ketika user membuat perubahan baru setelah Undo.
+- [x] Implementasikan Reset Adjustment untuk satu control/section sesuai konteks aktif.
+- [x] Implementasikan Reset All ke kondisi original.
+- [x] Minta konfirmasi sebelum Reset All bila ada edit yang belum diexport.
+- [x] Tampilkan disabled state yang jelas saat Undo/Redo tidak tersedia.
+- [x] Jangan persist history setelah browser session berakhir.
+
+### M1 decision log — 2026-09-12
+
+- Engine client-side memakai Canvas 2D dan parameter edit versioned (`version: 1`); Laravel hanya menyajikan shell dan route.
+- Batas import ditetapkan pada 30 MB dan 12.000 px per sisi; preview dibatasi hingga 1.800 px pada sisi terpanjang untuk menjaga slider responsif.
+- Source disimpan sebagai `ImageBitmap`/`HTMLImageElement` immutable; adjustment diterapkan ke preview canvas, bukan ke source.
+- History hanya menyimpan snapshot parameter adjustment di memory session. Slider commit satu kali pada akhir gesture, sedangkan render selama gesture dijadwalkan via `requestAnimationFrame`.
+- Export full-resolution, schema lengkap crop/HSL/effects/frame, dan persistence lokal tetap ditunda ke milestone berikutnya.
 
 ## M2 — Color Grading Experience (P1)
 

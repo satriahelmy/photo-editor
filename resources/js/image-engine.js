@@ -136,6 +136,15 @@ export function cloneEditState(state) {
     };
 }
 
+export function copyEditState(state) {
+    const snapshot = cloneEditState(state);
+
+    snapshot.preset = { id: null, intensity: 100 };
+    snapshot.match = { ...DEFAULT_MATCH };
+
+    return snapshot;
+}
+
 export function editStatesEqual(left, right) {
     const leftState = cloneEditState(left);
     const rightState = cloneEditState(right);

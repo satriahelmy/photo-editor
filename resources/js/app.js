@@ -5,13 +5,14 @@ import {
     ArrowLeft,
     ArrowRight,
     ArrowUpRight,
+    ClipboardPaste,
+    Copy,
     Crop,
     Frame,
     ImagePlus,
     Layers3,
     Menu,
     Minus,
-    MoreHorizontal,
     Plus,
     Redo2,
     ScanSearch,
@@ -32,6 +33,7 @@ import {
     HSL_CONTROL_DEFINITIONS,
     analyzeImageSource,
     canvasToBlob,
+    copyEditState,
     cloneEditState,
     createCropForMode,
     createDefaultEditState,
@@ -133,6 +135,9 @@ window.editorShell = () => ({
     matchIntensity: 100,
     matchBaseState: null,
     matchFormulaState: null,
+    copiedEditState: null,
+    editFeedback: '',
+    _editFeedbackTimer: null,
     exportFormats: EXPORT_FORMAT_DEFINITIONS,
     exportSizes: EXPORT_SIZE_DEFINITIONS,
     showExportModal: false,
@@ -258,6 +263,44 @@ window.editorShell = () => ({
     },
     sectionHasEdits(section) {
         return this.controlsForSection(section).some((control) => this.controlValue(control) !== 0);
+    },
+    showEditFeedback(message) {
+        this.editFeedback = message;
+
+        if (this._editFeedbackTimer) clearTimeout(this._editFeedbackTimer);
+        this._editFeedbackTimer = setTimeout(() => {
+            this.editFeedback = '';
+            this._editFeedbackTimer = null;
+        }, 2400);
+    },
+    copyEdit() {
+        if (!this.hasImage) return;
+
+        this.copiedEditState = copyEditState(this.editState);
+        this.showEditFeedback('Edit copied');
+    },
+    pasteEdit() {
+        if (!this.hasImage) return;
+
+        if (!this.copiedEditState) {
+            this.showEditFeedback('Copy an edit first');
+            return;
+        }
+
+        this.editState = copyEditState(this.copiedEditState);
+        this.activePresetId = null;
+        this.presetBaseState = null;
+        this.presetIntensity = 100;
+        this.matchStatus = 'idle';
+        this.matchError = '';
+        this.matchConfidence = 0;
+        this.matchSummary = null;
+        this.matchIntensity = 100;
+        this.matchBaseState = null;
+        this.matchFormulaState = null;
+        this.pushHistory();
+        this.scheduleRender();
+        this.showEditFeedback('Edit pasted');
     },
     activateTool(toolId) {
         this.activeTool = toolId;
@@ -1083,6 +1126,7 @@ window.editorShell = () => ({
     cleanup() {
         if (this._renderFrame) cancelAnimationFrame(this._renderFrame);
         if (this._exportEstimateFrame) cancelAnimationFrame(this._exportEstimateFrame);
+        if (this._editFeedbackTimer) clearTimeout(this._editFeedbackTimer);
 
         releaseImageSource(this.source);
         releaseImageSource(this.referenceSource);
@@ -1108,13 +1152,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ArrowLeft,
             ArrowRight,
             ArrowUpRight,
+            ClipboardPaste,
+            Copy,
             Crop,
             Frame,
             ImagePlus,
             Layers3,
             Menu,
             Minus,
-            MoreHorizontal,
             Plus,
             Redo2,
             ScanSearch,

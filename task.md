@@ -195,10 +195,12 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### Copy / Paste Edit (P2)
 
-- [ ] Implementasikan Copy Edit sebagai salinan parameter edit yang immutable.
-- [ ] Implementasikan Paste Edit ke target image lain tanpa menyalin source/reference image.
-- [ ] Tampilkan feedback subtle saat copy/paste berhasil atau clipboard edit belum tersedia.
-- [ ] Pastikan Copy/Paste berbeda secara behavior dari Match Reference.
+- [x] Implementasikan Copy Edit sebagai salinan parameter edit yang immutable.
+- [x] Implementasikan Paste Edit ke target image lain tanpa menyalin source/reference image.
+- [x] Tampilkan feedback subtle saat copy/paste berhasil atau clipboard edit belum tersedia.
+- [x] Pastikan Copy/Paste berbeda secara behavior dari Match Reference.
+
+Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail, crop, transform, dan frame; preset/match metadata serta source/reference image tidak ikut disalin.
 
 ## M4 — Match Reference (P2 / hero feature)
 
@@ -335,7 +337,7 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 - [ ] User dapat melakukan semua P0 adjustment secara real-time, reset, Before/After, Undo/Redo, crop, dan export.
 - [ ] User dapat menggunakan preset, HSL/effects, menyimpan custom preset lokal, frame, dan transform sesuai scope P1.
 - [ ] User dapat mengunggah reference, melihat target/reference, menjalankan Match Reference, mengubah intensity, dan fine-tune hasilnya.
-- [ ] User dapat melakukan Copy/Paste Edit.
+- [x] User dapat melakukan Copy/Paste Edit.
 - [ ] Export JPG/PNG/WebP dan social-media sizes bekerja tanpa watermark.
 - [ ] Core workflow selesai tanpa foto meninggalkan browser.
 - [ ] Responsive, accessibility, error handling, dan performance acceptance terpenuhi.

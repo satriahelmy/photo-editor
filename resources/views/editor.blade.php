@@ -92,7 +92,10 @@
                         <span class="panel-kicker" x-text="activeToolLabel">Adjust</span>
                         <h2 x-text="panelTitle">Adjustments</h2>
                     </div>
-                    <button type="button" class="panel-close" aria-label="Panel options" disabled><i data-lucide="more-horizontal" aria-hidden="true"></i></button>
+                    <div class="panel-header-actions" aria-label="Edit transfer actions">
+                        <button type="button" class="panel-action" :disabled="!hasImage" @click="copyEdit()" title="Copy edit"><i data-lucide="copy" aria-hidden="true"></i><span>Copy</span></button>
+                        <button type="button" class="panel-action" :disabled="!hasImage || !copiedEditState" @click="pasteEdit()" title="Paste edit"><i data-lucide="clipboard-paste" aria-hidden="true"></i><span>Paste</span></button>
+                    </div>
                 </div>
 
                 <div class="panel-content">
@@ -356,6 +359,8 @@
             <span class="canvas-note" x-text="hasImage ? 'Hold the canvas or Before to compare.' : 'Preview resolution will keep editing responsive.'"></span>
             <button type="button" class="before-button" :disabled="!hasImage" @pointerdown.prevent="startBefore()" @pointerup="endBefore()" @pointerleave="endBefore()" @pointercancel="endBefore()">Before</button>
         </footer>
+
+        <p class="editor-feedback" x-show="editFeedback" x-cloak x-text="editFeedback" role="status" aria-live="polite"></p>
 
         <nav class="mobile-tool-nav" aria-label="Mobile editing tools">
             <template x-for="tool in tools" :key="`mobile-${tool.id}`">

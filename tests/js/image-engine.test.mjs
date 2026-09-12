@@ -8,6 +8,7 @@ import {
     EXPORT_FORMAT_DEFINITIONS,
     EXPORT_SIZE_DEFINITIONS,
     applyAdjustmentsToPixels,
+    copyEditState,
     createDefaultEditState,
     createCropForMode,
     deriveMatchState,
@@ -85,6 +86,18 @@ assert.deepEqual(getExportDimensions(4000, 3000, {
     transform: { ...baseState.transform, rotation: 90 },
     frame: { ...baseState.frame, size: 5, ratio: '1:1' },
 }, 'original'), { width: 4400, height: 4400 });
+
+const transferableState = createDefaultEditState();
+transferableState.adjustments.temperature = 24;
+transferableState.hsl.green.hue = -18;
+transferableState.crop = { mode: '1:1', x: 0.1, y: 0, width: 0.8, height: 1 };
+transferableState.match = { id: 'reference-match', intensity: 80, confidence: 0.7 };
+const copiedState = copyEditState(transferableState);
+copiedState.adjustments.temperature = -20;
+assert.equal(transferableState.adjustments.temperature, 24, 'copy must be an independent snapshot');
+assert.equal(copiedState.hsl.green.hue, -18, 'copy must preserve HSL parameters');
+assert.equal(copiedState.crop.mode, '1:1', 'copy must preserve composition parameters');
+assert.equal(copiedState.match.id, null, 'copy must not carry reference-match metadata');
 
 const targetFeatures = extractImageFeatures(new Uint8ClampedArray([80, 90, 100, 255, 110, 120, 130, 255]), 2, 1);
 const referenceFeatures = extractImageFeatures(new Uint8ClampedArray([170, 130, 90, 255, 190, 150, 110, 255]), 2, 1);

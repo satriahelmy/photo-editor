@@ -5,6 +5,8 @@ import {
     DEFAULT_FRAME,
     DEFAULT_ADJUSTMENTS,
     DEFAULT_HSL,
+    EXPORT_FORMAT_DEFINITIONS,
+    EXPORT_SIZE_DEFINITIONS,
     applyAdjustmentsToPixels,
     createDefaultEditState,
     createCropForMode,
@@ -12,6 +14,7 @@ import {
     editStatesEqual,
     extractImageFeatures,
     formatAdjustmentValue,
+    getExportDimensions,
     getPreviewSize,
     interpolateEditStates,
     validateImageFile,
@@ -71,6 +74,17 @@ const presetState = { ...baseState, adjustments: { ...baseState.adjustments, con
 assert.equal(interpolateEditStates(baseState, presetState, 0).adjustments.contrast, 0, 'preset intensity 0 must stay neutral');
 assert.equal(interpolateEditStates(baseState, presetState, 1).adjustments.contrast, 40, 'preset intensity 100 must use full formula');
 assert.equal(BUILT_IN_PRESETS.length, 12, 'the built-in preset set must contain twelve formulas');
+assert.deepEqual(EXPORT_FORMAT_DEFINITIONS.map(({ id }) => id), ['jpg', 'png', 'webp']);
+assert.deepEqual(EXPORT_SIZE_DEFINITIONS.map(({ id }) => id), ['original', 'instagram-portrait', 'instagram-square', 'story']);
+assert.deepEqual(getExportDimensions(4000, 3000, baseState, 'instagram-portrait'), { width: 1080, height: 1350 });
+assert.deepEqual(getExportDimensions(4000, 3000, baseState, 'instagram-square'), { width: 1080, height: 1080 });
+assert.deepEqual(getExportDimensions(4000, 3000, baseState, 'story'), { width: 1080, height: 1920 });
+assert.deepEqual(getExportDimensions(4000, 3000, baseState, 'original'), { width: 4000, height: 3000 });
+assert.deepEqual(getExportDimensions(4000, 3000, {
+    ...baseState,
+    transform: { ...baseState.transform, rotation: 90 },
+    frame: { ...baseState.frame, size: 5, ratio: '1:1' },
+}, 'original'), { width: 4400, height: 4400 });
 
 const targetFeatures = extractImageFeatures(new Uint8ClampedArray([80, 90, 100, 255, 110, 120, 130, 255]), 2, 1);
 const referenceFeatures = extractImageFeatures(new Uint8ClampedArray([170, 130, 90, 255, 190, 150, 110, 255]), 2, 1);

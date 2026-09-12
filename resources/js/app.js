@@ -18,6 +18,7 @@ import {
     ShieldCheck,
     SlidersHorizontal,
     Undo2,
+    X,
     createIcons,
 } from 'lucide';
 import {
@@ -25,9 +26,12 @@ import {
     BUILT_IN_PRESETS,
     DETAIL_DEFINITIONS,
     EFFECT_DEFINITIONS,
+    EXPORT_FORMAT_DEFINITIONS,
+    EXPORT_SIZE_DEFINITIONS,
     HSL_COLOR_DEFINITIONS,
     HSL_CONTROL_DEFINITIONS,
     analyzeImageSource,
+    canvasToBlob,
     cloneEditState,
     createCropForMode,
     createDefaultEditState,
@@ -35,13 +39,23 @@ import {
     decodeImageFile,
     editStatesEqual,
     formatAdjustmentValue,
+    getExportDimensions,
     interpolateEditStates,
     releaseImageSource,
+    renderExportCanvas,
     renderPreview,
     validateImageFile,
 } from './image-engine';
 
 const CUSTOM_PRESET_STORAGE_KEY = 'photo-editor.custom-presets.v1';
+
+function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '—';
+    if (bytes < 1024) return `${Math.round(bytes)} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 window.Alpine = Alpine;
 
@@ -119,6 +133,18 @@ window.editorShell = () => ({
     matchIntensity: 100,
     matchBaseState: null,
     matchFormulaState: null,
+    exportFormats: EXPORT_FORMAT_DEFINITIONS,
+    exportSizes: EXPORT_SIZE_DEFINITIONS,
+    showExportModal: false,
+    exportFormat: 'jpg',
+    exportSize: 'original',
+    exportQuality: 90,
+    exportEstimate: '—',
+    exportEstimateLoading: false,
+    exportError: '',
+    isExporting: false,
+    exportEstimateToken: 0,
+    _exportEstimateFrame: null,
     _renderFrame: null,
     init() {
         this.history = [cloneEditState(this.editState)];
@@ -158,6 +184,48 @@ window.editorShell = () => ({
         if (!this.sourceFileName) return 'No photo selected';
 
         return `${this.sourceFileName} · ${this.sourceDimensions.width}×${this.sourceDimensions.height}`;
+    },
+    get selectedExportFormat() {
+        return this.exportFormats.find((format) => format.id === this.exportFormat) ?? this.exportFormats[0];
+    },
+    get selectedExportSize() {
+        return this.exportSizes.find((size) => size.id === this.exportSize) ?? this.exportSizes[0];
+    },
+    get exportQualityVisible() {
+        return Boolean(this.selectedExportFormat?.supportsQuality);
+    },
+    get exportDimensionsLabel() {
+        if (!this.hasImage) return '—';
+
+        const dimensions = getExportDimensions(
+            this.sourceDimensions.width,
+            this.sourceDimensions.height,
+            this.editState,
+            this.exportSize,
+        );
+
+        return `${dimensions.width} × ${dimensions.height}`;
+    },
+    exportSizeDimensions(size) {
+        if (size.width && size.height) return `${size.width} × ${size.height}`;
+        if (!this.hasImage) return 'Source dimensions';
+
+        const dimensions = getExportDimensions(
+            this.sourceDimensions.width,
+            this.sourceDimensions.height,
+            this.editState,
+            size.id,
+        );
+
+        return `${dimensions.width} × ${dimensions.height}`;
+    },
+    get exportFileName() {
+        const baseName = this.sourceFileName
+            .replace(/\.[^/.]+$/, '')
+            .replace(/[^a-z0-9_-]+/gi, '-')
+            .replace(/^-+|-+$/g, '') || 'photo';
+
+        return `${baseName}-edited.${this.selectedExportFormat?.extension ?? 'jpg'}`;
     },
     get allPresets() {
         return [
@@ -247,6 +315,111 @@ window.editorShell = () => ({
                 editState: createDefaultEditState(),
                 maxDimension: 520,
             });
+        }
+    },
+    openExport() {
+        if (!this.hasImage || this.isExporting) return;
+
+        this.exportError = '';
+        this.showExportModal = true;
+        this.scheduleExportEstimate();
+    },
+    closeExport() {
+        if (this.isExporting) return;
+
+        if (this._exportEstimateFrame) cancelAnimationFrame(this._exportEstimateFrame);
+        this._exportEstimateFrame = null;
+        this.showExportModal = false;
+        this.exportError = '';
+    },
+    scheduleExportEstimate() {
+        if (this._exportEstimateFrame) cancelAnimationFrame(this._exportEstimateFrame);
+
+        this.exportEstimate = 'Estimating…';
+        this._exportEstimateFrame = requestAnimationFrame(() => {
+            this._exportEstimateFrame = null;
+            this.updateExportEstimate();
+        });
+    },
+    async updateExportEstimate() {
+        if (!this.showExportModal || !this.source || this.isExporting) return;
+
+        const token = ++this.exportEstimateToken;
+        const format = this.selectedExportFormat;
+
+        this.exportEstimateLoading = true;
+
+        try {
+            const preview = renderExportCanvas({
+                source: this.source,
+                editState: this.editState,
+                sizeMode: this.exportSize,
+                maxDimension: 900,
+            });
+            const blob = await canvasToBlob(preview, format.mimeType, this.exportQuality / 100);
+            const target = getExportDimensions(
+                this.sourceDimensions.width,
+                this.sourceDimensions.height,
+                this.editState,
+                this.exportSize,
+            );
+            const previewPixels = preview.width * preview.height;
+            const targetPixels = target.width * target.height;
+            const scale = this.exportSize === 'original' && previewPixels < targetPixels
+                ? Math.pow(targetPixels / previewPixels, 0.85)
+                : 1;
+
+            if (token === this.exportEstimateToken) this.exportEstimate = formatBytes(blob.size * scale);
+        } catch (estimateError) {
+            if (token === this.exportEstimateToken) this.exportEstimate = 'Unavailable';
+        } finally {
+            if (token === this.exportEstimateToken) this.exportEstimateLoading = false;
+        }
+    },
+    setExportFormat(formatId) {
+        this.exportFormat = formatId;
+        this.exportError = '';
+        this.scheduleExportEstimate();
+    },
+    setExportSize(sizeId) {
+        this.exportSize = sizeId;
+        this.exportError = '';
+        this.scheduleExportEstimate();
+    },
+    setExportQuality(value) {
+        this.exportQuality = Number(value);
+        this.scheduleExportEstimate();
+    },
+    async exportPhoto() {
+        if (!this.source || this.isExporting) return;
+
+        this.isExporting = true;
+        this.exportError = '';
+
+        try {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            const format = this.selectedExportFormat;
+            const canvas = renderExportCanvas({
+                source: this.source,
+                editState: this.editState,
+                sizeMode: this.exportSize,
+                maxDimension: Infinity,
+            });
+            const blob = await canvasToBlob(canvas, format.mimeType, this.exportQuality / 100);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = this.exportFileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            this.showExportModal = false;
+        } catch (exportError) {
+            this.exportError = exportError.message || 'The full-resolution export could not be completed.';
+        } finally {
+            this.isExporting = false;
         }
     },
     async selectFile(event) {
@@ -876,6 +1049,8 @@ window.editorShell = () => ({
     },
     cleanup() {
         if (this._renderFrame) cancelAnimationFrame(this._renderFrame);
+        if (this._exportEstimateFrame) cancelAnimationFrame(this._exportEstimateFrame);
+
         releaseImageSource(this.source);
         releaseImageSource(this.referenceSource);
         this.source = null;
@@ -913,6 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ShieldCheck,
             SlidersHorizontal,
             Undo2,
+            X,
         },
     });
 });

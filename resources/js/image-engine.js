@@ -10,6 +10,19 @@ export const SUPPORTED_IMAGE_TYPES = Object.freeze([
 
 const SUPPORTED_IMAGE_EXTENSIONS = Object.freeze(['jpg', 'jpeg', 'png', 'webp']);
 
+export const EXPORT_FORMAT_DEFINITIONS = Object.freeze([
+    { id: 'jpg', label: 'JPG', mimeType: 'image/jpeg', extension: 'jpg', supportsQuality: true },
+    { id: 'png', label: 'PNG', mimeType: 'image/png', extension: 'png', supportsQuality: false },
+    { id: 'webp', label: 'WebP', mimeType: 'image/webp', extension: 'webp', supportsQuality: true },
+]);
+
+export const EXPORT_SIZE_DEFINITIONS = Object.freeze([
+    { id: 'original', label: 'Original', width: null, height: null },
+    { id: 'instagram-portrait', label: 'Instagram Portrait', width: 1080, height: 1350 },
+    { id: 'instagram-square', label: 'Instagram Square', width: 1080, height: 1080 },
+    { id: 'story', label: 'Story', width: 1080, height: 1920 },
+]);
+
 export const ADJUSTMENT_DEFINITIONS = Object.freeze([
     { key: 'exposure', label: 'Exposure', min: -2, max: 2, step: 0.01, precision: 2, section: 'Light', group: 'adjustments' },
     { key: 'contrast', label: 'Contrast', min: -100, max: 100, step: 1, precision: 0, section: 'Light', group: 'adjustments' },
@@ -656,6 +669,39 @@ function frameRatioValue(ratio) {
     return { '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16 }[ratio] ?? null;
 }
 
+export function getExportDimensions(sourceWidth, sourceHeight, editState, sizeMode = 'original') {
+    const requestedSize = EXPORT_SIZE_DEFINITIONS.find((size) => size.id === sizeMode);
+
+    if (requestedSize?.width && requestedSize?.height) {
+        return { width: requestedSize.width, height: requestedSize.height };
+    }
+
+    const crop = normalizeCrop(editState.crop);
+    const cropWidth = sourceWidth * crop.width;
+    const cropHeight = sourceHeight * crop.height;
+    const rotation = ((Number(editState.transform?.rotation ?? 0) % 360) + 360) % 360;
+    const isQuarterTurn = rotation === 90 || rotation === 270;
+    const transformedWidth = isQuarterTurn ? cropHeight : cropWidth;
+    const transformedHeight = isQuarterTurn ? cropWidth : cropHeight;
+    const frame = { ...DEFAULT_FRAME, ...(editState.frame ?? {}) };
+    const padding = Math.max(transformedWidth, transformedHeight) * clamp(Number(frame.size) / 100, 0, 0.3);
+    const innerWidth = transformedWidth + padding * 2;
+    const innerHeight = transformedHeight + padding * 2;
+    const targetRatio = frameRatioValue(frame.ratio);
+    let outputWidth = innerWidth;
+    let outputHeight = innerHeight;
+
+    if (targetRatio) {
+        if (innerWidth / innerHeight > targetRatio) outputHeight = innerWidth / targetRatio;
+        else outputWidth = innerHeight * targetRatio;
+    }
+
+    return {
+        width: Math.max(1, Math.ceil(outputWidth)),
+        height: Math.max(1, Math.ceil(outputHeight)),
+    };
+}
+
 function composePhoto(source, editState, {
     includeCrop = true,
     includeFrame = true,
@@ -746,6 +792,64 @@ function composePhoto(source, editState, {
     );
 
     return frameCanvas;
+}
+
+export function renderExportCanvas({
+    source,
+    editState,
+    sizeMode = 'original',
+    maxDimension = Infinity,
+} = {}) {
+    const requestedSize = EXPORT_SIZE_DEFINITIONS.find((size) => size.id === sizeMode);
+    const composition = composePhoto(source, editState, {
+        maxDimension: requestedSize?.width ? Math.max(requestedSize.width, requestedSize.height) * 2 : maxDimension,
+    });
+
+    if (!requestedSize?.width || !requestedSize?.height) return composition;
+
+    const output = document.createElement('canvas');
+    output.width = requestedSize.width;
+    output.height = requestedSize.height;
+    const context = output.getContext('2d', { alpha: true });
+    const scale = Math.max(output.width / composition.width, output.height / composition.height);
+    const width = composition.width * scale;
+    const height = composition.height * scale;
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(composition, (output.width - width) / 2, (output.height - height) / 2, width, height);
+
+    return output;
+}
+
+export function canvasToBlob(canvas, mimeType, quality = 0.9) {
+    return new Promise((resolve, reject) => {
+        if (!canvas?.toBlob) {
+            reject(new Error('This browser cannot export canvas images.'));
+            return;
+        }
+
+        const exportCanvas = mimeType === 'image/jpeg' ? document.createElement('canvas') : canvas;
+
+        if (exportCanvas !== canvas) {
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const exportContext = exportCanvas.getContext('2d');
+
+            exportContext.fillStyle = '#ffffff';
+            exportContext.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+            exportContext.drawImage(canvas, 0, 0);
+        }
+
+        exportCanvas.toBlob((blob) => {
+            if (!blob || (mimeType !== 'image/png' && blob.type !== mimeType)) {
+                reject(new Error(`${mimeType === 'image/webp' ? 'WebP' : 'This'} export is not supported by this browser.`));
+                return;
+            }
+
+            resolve(blob);
+        }, mimeType, mimeType === 'image/png' ? undefined : clamp(Number(quality), 0.1, 1));
+    });
 }
 
 export function renderPreview({

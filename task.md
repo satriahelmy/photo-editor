@@ -249,16 +249,23 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### Export pipeline
 
-- [ ] Buat focused Export modal sesuai design: format, size, quality, estimated size, Cancel, Export.
-- [ ] Implementasikan output JPG, PNG, dan WebP.
-- [ ] Implementasikan resolution Original, Instagram Portrait `1080×1350`, Instagram Square `1080×1080`, dan Story `1080×1920`.
-- [ ] Tetapkan behavior resize/crop/frame ketika output ratio berbeda dari image.
-- [ ] Implementasikan quality slider untuk JPG/WebP dengan default yang menjaga kualitas visual; disable/hide quality bila format PNG.
-- [ ] Render full-resolution hanya saat export, dengan semua adjustment, HSL, effects, crop, transform, dan frame ikut diterapkan.
-- [ ] Pastikan export tidak menambahkan watermark atau metadata yang tidak diperlukan.
-- [ ] Download file dengan extension dan MIME type yang benar.
-- [ ] Beri error yang direct jika full-resolution export gagal atau browser tidak mendukung format tertentu.
+- [x] Buat focused Export modal sesuai design: format, size, quality, estimated size, Cancel, Export.
+- [x] Implementasikan output JPG, PNG, dan WebP.
+- [x] Implementasikan resolution Original, Instagram Portrait `1080×1350`, Instagram Square `1080×1080`, dan Story `1080×1920`.
+- [x] Tetapkan behavior resize/crop/frame ketika output ratio berbeda dari image dengan center-cover ke social size.
+- [x] Implementasikan quality slider untuk JPG/WebP dengan default yang menjaga kualitas visual; disable/hide quality bila format PNG.
+- [x] Render full-resolution hanya saat export, dengan semua adjustment, HSL, effects, crop, transform, dan frame ikut diterapkan.
+- [x] Pastikan export tidak menambahkan watermark atau metadata yang tidak diperlukan; canvas export hanya berisi pixel hasil edit.
+- [x] Download file dengan extension dan MIME type yang benar.
+- [x] Beri error yang direct jika full-resolution export gagal atau browser tidak mendukung format tertentu.
 - [ ] Uji output pada image portrait, landscape, square, transparency, resolusi besar, serta semua format.
+
+### M5 decision log — 2026-09-12
+
+- Original mempertahankan dimensi komposisi setelah crop, rotate, flip, dan frame; social preset menghasilkan canvas exact `1080×1350`, `1080×1080`, atau `1080×1920` dengan center-cover saat rasio berbeda.
+- Preview kecil dipakai hanya untuk estimasi ukuran; export aktual merender ulang canvas saat user menekan Export.
+- PNG/WebP mempertahankan alpha bila tersedia; JPEG diflatten ke putih karena formatnya tidak mendukung transparansi.
+- Canvas export tidak membawa source metadata atau watermark; download dibuat in-memory dengan MIME dan extension sesuai format.
 
 ### Histogram (conditional)
 

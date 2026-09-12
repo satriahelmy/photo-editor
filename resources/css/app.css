@@ -166,6 +166,18 @@
     background: #ffffff;
 }
 
+.button--quiet {
+    border-color: var(--border-default);
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.button--quiet:hover:not(:disabled) {
+    border-color: var(--border-strong);
+    background: var(--background-surface);
+    color: var(--text-primary);
+}
+
 .button:disabled,
 .icon-button:disabled,
 .canvas-button:disabled,
@@ -1914,6 +1926,166 @@
     line-height: 1.5;
 }
 
+.export-backdrop {
+    position: fixed;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    inset: 0;
+    padding: 20px;
+    background: rgb(0 0 0 / 72%);
+}
+
+.export-modal {
+    width: min(440px, 100%);
+    max-height: min(700px, calc(100dvh - 40px));
+    overflow: auto;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-modal);
+    background: var(--background-panel);
+    box-shadow: 0 18px 60px rgb(0 0 0 / 34%);
+}
+
+.export-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.export-modal-header h2 {
+    margin: 6px 0 0;
+    color: var(--text-primary);
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+}
+
+.export-modal-content {
+    padding: 22px;
+}
+
+.export-fieldset {
+    margin: 0 0 22px;
+    padding: 0;
+    border: 0;
+}
+
+.export-fieldset legend {
+    margin-bottom: 9px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.export-size-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.export-size-option {
+    display: flex;
+    min-height: 54px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 10px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.export-size-option:hover,
+.export-size-option.is-active {
+    border-color: var(--text-secondary);
+    background: var(--background-surface);
+    color: var(--text-primary);
+}
+
+.export-size-option small {
+    color: var(--text-muted);
+    font-size: 9px;
+}
+
+.export-quality {
+    padding-top: 2px;
+}
+
+.export-row-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.export-row-heading output {
+    color: var(--text-primary);
+}
+
+.export-quality-note {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.export-summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 9px 16px;
+    margin-top: 22px;
+    padding-top: 17px;
+    border-top: 1px solid var(--border-default);
+    font-size: 10px;
+}
+
+.export-summary span:first-child,
+.export-summary span:nth-of-type(2) {
+    color: var(--text-muted);
+}
+
+.export-summary strong {
+    color: var(--text-primary);
+    font-size: 10px;
+    font-weight: 500;
+    text-align: right;
+}
+
+.export-estimate-spinner {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 5px;
+    border: 1px solid var(--border-strong);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: match-spin 700ms linear infinite;
+    vertical-align: -1px;
+}
+
+.export-error {
+    margin: 16px 0 0;
+    color: #d9a39a;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.export-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 22px 20px;
+    border-top: 1px solid var(--border-default);
+}
+
 .canvas-controls {
     display: flex;
     align-items: center;
@@ -2162,6 +2334,22 @@
 
     .editor-export {
         margin-left: 0;
+    }
+
+    .export-backdrop {
+        align-items: end;
+        padding: 12px;
+    }
+
+    .export-modal {
+        max-height: calc(100dvh - 24px);
+    }
+
+    .export-modal-header,
+    .export-modal-content,
+    .export-modal-actions {
+        padding-right: 16px;
+        padding-left: 16px;
     }
 
     .editor-main {

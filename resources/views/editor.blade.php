@@ -14,7 +14,7 @@
             <div class="editor-actions">
                 <button class="icon-button" type="button" aria-label="Undo" :disabled="!canUndo" @click="undo()"><i data-lucide="undo-2" aria-hidden="true"></i></button>
                 <button class="icon-button" type="button" aria-label="Redo" :disabled="!canRedo" @click="redo()"><i data-lucide="redo-2" aria-hidden="true"></i></button>
-                <button class="button button--light button--small editor-export" type="button" disabled>Export</button>
+                <button class="button button--light button--small editor-export" type="button" :disabled="!hasImage" @click="openExport()" aria-haspopup="dialog">Export</button>
             </div>
         </header>
 
@@ -298,6 +298,54 @@
                 </div>
             </aside>
         </main>
+
+        <div class="export-backdrop" x-show="showExportModal" x-cloak @click.self="closeExport()" @keydown.escape.window="closeExport()">
+            <section class="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title">
+                <div class="export-modal-header">
+                    <div>
+                        <p class="panel-kicker">Export</p>
+                        <h2 id="export-title">Export photo</h2>
+                    </div>
+                    <button type="button" class="panel-close" aria-label="Close export dialog" :disabled="isExporting" @click="closeExport()"><i data-lucide="x" aria-hidden="true"></i></button>
+                </div>
+                <div class="export-modal-content">
+                    <fieldset class="export-fieldset">
+                        <legend>Format</legend>
+                        <div class="segmented-options" role="group" aria-label="Export format">
+                            <template x-for="format in exportFormats" :key="format.id">
+                                <button type="button" class="segmented-option" :class="{ 'is-active': exportFormat === format.id }" :aria-pressed="exportFormat === format.id" @click="setExportFormat(format.id)" x-text="format.label"></button>
+                            </template>
+                        </div>
+                    </fieldset>
+                    <fieldset class="export-fieldset">
+                        <legend>Size</legend>
+                        <div class="export-size-options" role="group" aria-label="Export size">
+                            <template x-for="size in exportSizes" :key="size.id">
+                                <button type="button" class="export-size-option" :class="{ 'is-active': exportSize === size.id }" :aria-pressed="exportSize === size.id" @click="setExportSize(size.id)">
+                                    <span x-text="size.label"></span>
+                                    <small x-text="exportSizeDimensions(size)"></small>
+                                </button>
+                            </template>
+                        </div>
+                    </fieldset>
+                    <div class="export-quality" x-show="exportQualityVisible">
+                        <div class="export-row-heading"><span>Quality</span><output x-text="`${exportQuality}%`"></output></div>
+                        <input class="adjustment-slider" type="range" min="10" max="100" step="1" :value="exportQuality" aria-label="Export quality" @input="setExportQuality($event.target.value)">
+                        <div class="slider-range" aria-hidden="true"><span>Low</span><span>Maximum</span></div>
+                    </div>
+                    <p class="export-quality-note" x-show="!exportQualityVisible">PNG exports are lossless.</p>
+                    <div class="export-summary">
+                        <span>Output</span><strong x-text="`${exportDimensionsLabel} · ${selectedExportFormat.label}`"></strong>
+                        <span>Estimated size</span><strong><span x-show="exportEstimateLoading" class="export-estimate-spinner" aria-hidden="true"></span><span x-text="exportEstimate"></span></strong>
+                    </div>
+                    <p class="export-error" x-show="exportError" x-text="exportError" role="alert"></p>
+                </div>
+                <div class="export-modal-actions">
+                    <button type="button" class="button button--quiet" :disabled="isExporting" @click="closeExport()">Cancel</button>
+                    <button type="button" class="button button--light" :disabled="isExporting" @click="exportPhoto()"><span x-show="!isExporting">Export</span><span x-show="isExporting">Rendering…</span></button>
+                </div>
+            </section>
+        </div>
 
         <footer class="canvas-controls">
             <div class="canvas-control-group">

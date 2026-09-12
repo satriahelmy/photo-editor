@@ -23,7 +23,7 @@
                 <div class="tool-rail-heading">Tools</div>
                 <nav class="tool-list">
                     <template x-for="tool in tools" :key="tool.id">
-                        <button class="tool-item" type="button" :class="{ 'is-active': activeTool === tool.id }" @click="activeTool = tool.id" :aria-current="activeTool === tool.id ? 'page' : undefined">
+                        <button class="tool-item" type="button" :class="{ 'is-active': activeTool === tool.id }" @click="activateTool(tool.id)" :aria-current="activeTool === tool.id ? 'page' : undefined">
                             <i :data-lucide="tool.icon" aria-hidden="true"></i><span x-text="tool.label"></span>
                         </button>
                     </template>
@@ -86,30 +86,42 @@
                                         <span class="adjustment-section-title" x-text="section"></span>
                                         <span class="adjustment-section-chevron" :class="{ 'is-open': activeSection === section }" aria-hidden="true">⌄</span>
                                     </button>
-                                    <button type="button" class="adjustment-section-reset" :disabled="!controlsForSection(section).some(control => adjustmentValue(control.key) !== 0)" @click="resetSection(section)">Reset</button>
+                                    <button type="button" class="adjustment-section-reset" :disabled="!sectionHasEdits(section)" @click="resetSection(section)">Reset</button>
                                 </div>
                                 <div class="adjustment-section-body" x-show="activeSection === section">
+                                    <div x-show="section === 'HSL'" class="hsl-color-picker">
+                                        <span class="hsl-picker-label">Color range</span>
+                                        <div class="hsl-color-grid" role="group" aria-label="HSL color range">
+                                            <template x-for="color in hslColorDefinitions" :key="color.id">
+                                                <button type="button" class="hsl-color-option" :class="{ 'is-active': activeHslColor === color.id }" :aria-pressed="activeHslColor === color.id" :aria-label="`${color.label} HSL controls`" @click="selectHslColor(color.id)">
+                                                    <span class="hsl-color-dot" :style="{ backgroundColor: color.dot }" aria-hidden="true"></span>
+                                                    <span x-text="color.label"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
                                     <template x-for="control in controlsForSection(section)" :key="control.key">
                                         <div class="adjustment-row">
                                             <div class="adjustment-label-row">
-                                                <label :for="`adjustment-${control.key}`" x-text="control.label"></label>
-                                                <output class="adjustment-value" :for="`adjustment-${control.key}`" x-text="displayValue(control)"></output>
-                                                <button type="button" class="adjustment-reset" :aria-label="`Reset ${control.label}`" :disabled="adjustmentValue(control.key) === 0" @click="resetAdjustment(control.key)">Reset</button>
+                                                <label :for="`adjustment-${section.toLowerCase()}-${control.key}`" x-text="control.label"></label>
+                                                <output class="adjustment-value" :for="`adjustment-${section.toLowerCase()}-${control.key}`" x-text="displayValue(control)"></output>
+                                                <button type="button" class="adjustment-reset" :aria-label="`Reset ${control.label}`" :disabled="controlValue(control) === 0" @click="resetControl(control)">Reset</button>
                                             </div>
                                             <input
                                                 class="adjustment-slider"
                                                 type="range"
-                                                :id="`adjustment-${control.key}`"
+                                                :id="`adjustment-${section.toLowerCase()}-${control.key}`"
+                                                :data-group="control.group"
                                                 :min="control.min"
                                                 :max="control.max"
                                                 :step="control.step"
-                                                :value="adjustmentValue(control.key)"
+                                                :value="controlValue(control)"
                                                 :disabled="!hasImage"
                                                 :aria-label="control.label"
-                                                @input="updateAdjustment(control.key, $event.target.value)"
+                                                @input="updateControl(control, $event.target.value)"
                                                 @change="commitAdjustment()"
                                                 @pointerup="handleSliderPointerUp($event, control.key)"
-                                                @dblclick="resetAdjustment(control.key)"
+                                                @dblclick="resetControl(control)"
                                             >
                                             <div class="slider-range" aria-hidden="true"><span x-text="control.min"></span><span x-text="control.max"></span></div>
                                         </div>
@@ -121,7 +133,42 @@
                             <button type="button" class="reset-all-button" :disabled="!isDirty" @click="resetAll()">Reset all adjustments</button>
                         </div>
                     </div>
-                    <div x-show="activeTool !== 'adjust'" class="panel-empty" x-cloak>
+                    <div x-show="activeTool === 'presets'" class="presets-content" x-cloak>
+                        <div class="preset-intensity-panel" x-show="activePreset">
+                            <div class="preset-intensity-heading">
+                                <span>Preset intensity</span>
+                                <output class="adjustment-value" x-text="`${presetIntensity}%`"></output>
+                            </div>
+                            <input class="adjustment-slider" type="range" min="0" max="100" step="1" :value="presetIntensity" :disabled="!activePreset || !hasImage" aria-label="Preset intensity" @input="setPresetIntensity($event.target.value)" @change="commitAdjustment()">
+                            <div class="slider-range" aria-hidden="true"><span>0</span><span>100</span></div>
+                        </div>
+                        <div class="preset-grid" aria-label="Built-in and custom presets">
+                            <template x-for="presetItem in allPresets" :key="presetItem.id">
+                                <div class="preset-card-wrap">
+                                    <button type="button" class="preset-card" :class="{ 'is-active': activePresetId === presetItem.id }" :disabled="!hasImage" :aria-pressed="activePresetId === presetItem.id" @click="applyPreset(presetItem)">
+                                        <span class="preset-thumbnail">
+                                            <canvas class="preset-thumb-canvas" :data-preset-id="presetItem.id" width="180" height="120" x-show="hasImage" aria-hidden="true"></canvas>
+                                            <span class="preset-placeholder" x-show="!hasImage" aria-hidden="true"></span>
+                                        </span>
+                                        <span class="preset-card-name" x-text="presetItem.name"></span>
+                                    </button>
+                                    <span class="preset-card-actions" x-show="presetItem.isCustom">
+                                        <button type="button" @click="renameCustomPreset(presetItem)">Rename</button>
+                                        <button type="button" @click="deleteCustomPreset(presetItem)">Delete</button>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="custom-preset-save">
+                            <label for="custom-preset-name">Save current look</label>
+                            <div class="custom-preset-fields">
+                                <input id="custom-preset-name" type="text" maxlength="40" placeholder="Preset name" x-model="presetName" :disabled="!hasImage" @keydown.enter.prevent="saveCustomPreset()">
+                                <button type="button" class="button button--light button--small" :disabled="!hasImage" @click="saveCustomPreset()">Save</button>
+                            </div>
+                            <p class="preset-error" x-show="presetError" x-text="presetError" role="alert"></p>
+                        </div>
+                    </div>
+                    <div x-show="activeTool !== 'adjust' && activeTool !== 'presets'" class="panel-empty" x-cloak>
                         <p><span x-text="panelTitle"></span> will appear here once a photo is loaded.</p>
                     </div>
                 </div>
@@ -140,7 +187,7 @@
 
         <nav class="mobile-tool-nav" aria-label="Mobile editing tools">
             <template x-for="tool in tools" :key="`mobile-${tool.id}`">
-                <button class="mobile-tool-item" type="button" :class="{ 'is-active': activeTool === tool.id }" @click="activeTool = tool.id">
+                <button class="mobile-tool-item" type="button" :class="{ 'is-active': activeTool === tool.id }" @click="activateTool(tool.id)">
                     <i :data-lucide="tool.icon" aria-hidden="true"></i><span x-text="tool.label"></span>
                 </button>
             </template>

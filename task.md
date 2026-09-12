@@ -119,41 +119,49 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 
 ### HSL
 
-- [ ] Implementasikan selector 8 warna: Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta.
-- [ ] Gunakan color dots hanya sebagai control/data representation, bukan dekorasi.
-- [ ] Implementasikan Hue, Saturation, dan Luminance untuk setiap warna.
-- [ ] Pastikan color selector dan setiap slider memiliki accessible label serta state yang tidak hanya dibedakan oleh warna.
-- [ ] Integrasikan HSL ke pipeline renderer dan history.
-- [ ] Tambahkan test untuk wrap Hue, clamp value, dan neutral HSL output.
+- [x] Implementasikan selector 8 warna: Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta.
+- [x] Gunakan color dots hanya sebagai control/data representation, bukan dekorasi.
+- [x] Implementasikan Hue, Saturation, dan Luminance untuk setiap warna.
+- [x] Pastikan color selector dan setiap slider memiliki accessible label serta state yang tidak hanya dibedakan oleh warna.
+- [x] Integrasikan HSL ke pipeline renderer dan history.
+- [x] Tambahkan test untuk wrap Hue, clamp value, dan neutral HSL output.
 
 ### Effects dan detail
 
-- [ ] Implementasikan Fade.
-- [ ] Implementasikan Grain dengan noise yang stabil selama slider tidak berubah; hindari grain yang berkedip di setiap render.
-- [ ] Implementasikan Vignette.
-- [ ] Implementasikan Sharpen dengan fallback/guard agar tidak membuat preview terlalu lambat.
+- [x] Implementasikan Fade.
+- [x] Implementasikan Grain dengan noise yang stabil selama slider tidak berubah; hindari grain yang berkedip di setiap render.
+- [x] Implementasikan Vignette.
+- [x] Implementasikan Sharpen dengan fallback/guard agar tidak membuat preview terlalu lambat.
 - [ ] Integrasikan Effects dan Detail ke reset per-control, Undo/Redo, Before/After, serta export.
 
 ### Built-in presets
 
-- [ ] Definisikan sekitar 12 built-in presets dengan nama non-proprietary: Natural, Clean, Soft, Vivid, Warm Film, Faded Film, Cool Film, Vintage, Moody, Golden, Pastel, dan Classic B&W atau formula final yang disepakati.
-- [ ] Simpan formula preset dalam data terstruktur, bukan hardcode tersebar di template.
-- [ ] Implementasikan Preset Intensity 0–100% sebagai interpolasi yang deterministik.
-- [ ] Tetapkan dan uji behavior intensity 0% (neutral/current sesuai keputusan) dan 100% (full preset).
-- [ ] Setelah preset diterapkan, pastikan user dapat fine-tune semua adjustment secara manual.
-- [ ] Tampilkan preset dalam thumbnail foto yang sama dengan image user sehingga hasil efek benar-benar terlihat.
-- [ ] Buat layout thumbnail 2–3 kolom sesuai lebar panel.
-- [ ] Tampilkan selected preset dengan subtle outline, bukan gradient/color card.
+- [x] Definisikan sekitar 12 built-in presets dengan nama non-proprietary: Natural, Clean, Soft, Vivid, Warm Film, Faded Film, Cool Film, Vintage, Moody, Golden, Pastel, dan Classic B&W atau formula final yang disepakati.
+- [x] Simpan formula preset dalam data terstruktur, bukan hardcode tersebar di template.
+- [x] Implementasikan Preset Intensity 0–100% sebagai interpolasi yang deterministik.
+- [x] Tetapkan dan uji behavior intensity 0% (neutral/current sesuai keputusan) dan 100% (full preset).
+- [x] Setelah preset diterapkan, pastikan user dapat fine-tune semua adjustment secara manual.
+- [x] Tampilkan preset dalam thumbnail foto yang sama dengan image user sehingga hasil efek benar-benar terlihat.
+- [x] Buat layout thumbnail 2–3 kolom sesuai lebar panel.
+- [x] Tampilkan selected preset dengan subtle outline, bukan gradient/color card.
 
 ### Custom preset lokal
 
-- [ ] Pilih LocalStorage atau IndexedDB berdasarkan ukuran schema dan kebutuhan evolusi; dokumentasikan keputusan.
-- [ ] Buat schema custom preset versioned yang menyimpan adjustment/HSL/effect yang relevan, nama, id, dan timestamps.
-- [ ] Implementasikan Save Custom Preset dengan nama user, termasuk validasi nama kosong/duplikat.
-- [ ] Implementasikan Apply custom preset.
-- [ ] Implementasikan Rename custom preset.
-- [ ] Implementasikan Delete custom preset dengan konfirmasi bila perlu.
-- [ ] Tangani data storage yang rusak, penuh, atau berasal dari schema lama tanpa membuat editor crash.
+- [x] Pilih LocalStorage atau IndexedDB berdasarkan ukuran schema dan kebutuhan evolusi; dokumentasikan keputusan.
+- [x] Buat schema custom preset versioned yang menyimpan adjustment/HSL/effect yang relevan, nama, id, dan timestamps.
+- [x] Implementasikan Save Custom Preset dengan nama user, termasuk validasi nama kosong/duplikat.
+- [x] Implementasikan Apply custom preset.
+- [x] Implementasikan Rename custom preset.
+- [x] Implementasikan Delete custom preset dengan konfirmasi bila perlu.
+- [x] Tangani data storage yang rusak, penuh, atau berasal dari schema lama tanpa membuat editor crash.
+
+### M2 decision log — 2026-09-12
+
+- HSL memakai delapan hue range tetap dengan Hue/Saturation/Luminance masing-masing pada rentang `-100..100`; hue memakai circular distance agar Red tetap wrap di sekitar 0°/360°.
+- Grain menggunakan noise deterministik dari koordinat pixel sehingga preview tidak berkedip ketika parameter tidak berubah.
+- Preset formula disimpan sebagai data terstruktur dan intensity menginterpolasi state saat ini menuju formula preset secara deterministik; 0% mempertahankan state saat ini.
+- Custom preset memakai LocalStorage karena schema preview tetap kecil dan belum memerlukan query/attachment database; payload diberi `version`, `id`, nama, timestamps, dan state edit.
+- Thumbnail preset dirender pada resolusi maksimum 360 px, sedangkan canvas utama tetap memakai maksimum 1.800 px.
 
 ## M3 — Composition (P0/P1)
 

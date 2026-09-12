@@ -290,7 +290,7 @@ Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti depende
 - [ ] Hormati reduced-motion preference bila ada animasi.
 - [ ] Implementasikan loading hanya untuk operasi berat nyata seperti Match Reference dan full-resolution export.
 - [ ] Implementasikan error state direct, misalnya “This image couldn't be opened. Try a JPG, PNG, or WebP file.”
-- [ ] Pastikan dialog dapat ditutup dengan Escape, focus trap bekerja, dan focus kembali ke trigger.
+- [x] Pastikan dialog dapat ditutup dengan Escape, focus trap bekerja, dan focus kembali ke trigger.
 
 ## Performance, privacy, dan reliability
 

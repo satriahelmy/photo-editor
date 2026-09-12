@@ -144,6 +144,7 @@ window.editorShell = () => ({
     exportError: '',
     isExporting: false,
     exportEstimateToken: 0,
+    exportTrigger: null,
     _exportEstimateFrame: null,
     _renderFrame: null,
     init() {
@@ -320,8 +321,10 @@ window.editorShell = () => ({
     openExport() {
         if (!this.hasImage || this.isExporting) return;
 
+        this.exportTrigger = document.activeElement;
         this.exportError = '';
         this.showExportModal = true;
+        this.$nextTick(() => this.focusExportDialog());
         this.scheduleExportEstimate();
     },
     closeExport() {
@@ -331,6 +334,32 @@ window.editorShell = () => ({
         this._exportEstimateFrame = null;
         this.showExportModal = false;
         this.exportError = '';
+        const trigger = this.exportTrigger;
+
+        this.exportTrigger = null;
+        this.$nextTick(() => trigger?.focus?.());
+    },
+    focusExportDialog() {
+        this.$refs.exportCloseButton?.focus();
+    },
+    trapExportFocus(event) {
+        if (event.key !== 'Tab') return;
+
+        const focusable = [...this.$refs.exportModal.querySelectorAll('button:not(:disabled), input:not(:disabled)')]
+            .filter((element) => element.getClientRects().length > 0);
+
+        if (!focusable.length) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
     },
     scheduleExportEstimate() {
         if (this._exportEstimateFrame) cancelAnimationFrame(this._exportEstimateFrame);
@@ -416,6 +445,10 @@ window.editorShell = () => ({
             link.remove();
             setTimeout(() => URL.revokeObjectURL(url), 0);
             this.showExportModal = false;
+            const trigger = this.exportTrigger;
+
+            this.exportTrigger = null;
+            this.$nextTick(() => trigger?.focus?.());
         } catch (exportError) {
             this.exportError = exportError.message || 'The full-resolution export could not be completed.';
         } finally {

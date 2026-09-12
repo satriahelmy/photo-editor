@@ -300,13 +300,13 @@
         </main>
 
         <div class="export-backdrop" x-show="showExportModal" x-cloak @click.self="closeExport()" @keydown.escape.window="closeExport()">
-            <section class="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title">
+            <section class="export-modal" x-ref="exportModal" role="dialog" aria-modal="true" aria-labelledby="export-title" @keydown="trapExportFocus($event)">
                 <div class="export-modal-header">
                     <div>
                         <p class="panel-kicker">Export</p>
                         <h2 id="export-title">Export photo</h2>
                     </div>
-                    <button type="button" class="panel-close" aria-label="Close export dialog" :disabled="isExporting" @click="closeExport()"><i data-lucide="x" aria-hidden="true"></i></button>
+                    <button x-ref="exportCloseButton" type="button" class="panel-close" aria-label="Close export dialog" :disabled="isExporting" @click="closeExport()"><i data-lucide="x" aria-hidden="true"></i></button>
                 </div>
                 <div class="export-modal-content">
                     <fieldset class="export-fieldset">

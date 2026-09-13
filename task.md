@@ -286,6 +286,19 @@ Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail
 - [x] Jalankan regression test engine, production build, PHP test, view cache, formatter, dan diff check.
 - [ ] Verifikasi network secara manual di browser untuk memastikan workflow target/reference tetap local-only.
 
+### Accessibility pass
+
+- [x] Hubungkan toggle section dengan panelnya melalui `aria-controls`, `aria-expanded`, dan `aria-hidden`.
+- [x] Beri accessible label yang jelas pada target/reference file input.
+- [x] Laporkan tool aktif pada desktop dan mobile navigation dengan `aria-current`.
+
+### Browser smoke pass
+
+- [x] Buka `/editor`, load foto editorial landscape, dan pastikan modal Export menampilkan dimensi Original yang benar.
+- [x] Uji selector JPG, PNG, dan WebP serta konfirmasi PNG lossless dan quality control untuk format yang mendukung quality.
+- [x] Uji output label Instagram Square `1080 × 1080` dari target landscape.
+- [ ] Lengkapi matrix manual untuk portrait, square, transparansi, resolusi besar, serta hasil download aktual tiap format.
+
 ### M6 decision log — 2026-09-12
 
 - Request token dipakai untuk mencegah hasil async lama menggantikan target/reference terbaru; resource hasil request stale tetap ditutup.

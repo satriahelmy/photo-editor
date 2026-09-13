@@ -50,7 +50,7 @@
                     <p>or</p>
                     <button type="button" class="button button--light" @click="chooseFile()">Choose Photo</button>
                     <span class="empty-meta">JPG, PNG or WebP</span>
-                    <input x-ref="fileInput" type="file" class="visually-hidden" accept="image/jpeg,image/png,image/webp" @change="selectFile($event)">
+                    <input x-ref="fileInput" type="file" class="visually-hidden" accept="image/jpeg,image/png,image/webp" aria-label="Choose target photo" @change="selectFile($event)">
                     <span class="empty-loading" x-show="isLoading">Opening photo…</span>
                     <p class="empty-error" x-show="error" x-text="error" role="alert"></p>
                 </div>
@@ -103,13 +103,13 @@
                         <template x-for="section in sections" :key="section">
                             <section class="adjustment-section">
                                 <div class="adjustment-section-header">
-                                    <button type="button" class="adjustment-section-toggle" :aria-expanded="activeSection === section" @click="activeSection = activeSection === section ? '' : section">
+                                    <button type="button" class="adjustment-section-toggle" :aria-expanded="activeSection === section" :aria-controls="`adjustment-section-${section.toLowerCase()}`" @click="activeSection = activeSection === section ? '' : section">
                                         <span class="adjustment-section-title" x-text="section"></span>
                                         <span class="adjustment-section-chevron" :class="{ 'is-open': activeSection === section }" aria-hidden="true"></span>
                                     </button>
                                     <button type="button" class="adjustment-section-reset" :disabled="!sectionHasEdits(section)" @click="resetSection(section)">Reset</button>
                                 </div>
-                                <div class="adjustment-section-body" x-show="activeSection === section">
+                                <div class="adjustment-section-body" :id="`adjustment-section-${section.toLowerCase()}`" x-show="activeSection === section" :aria-hidden="activeSection === section ? 'false' : 'true'">
                                     <div x-show="section === 'HSL'" class="hsl-color-picker">
                                         <span class="hsl-picker-label">Color range</span>
                                         <div class="hsl-color-grid" role="group" aria-label="HSL color range">
@@ -265,7 +265,7 @@
                             </figure>
                         </div>
                         <div class="reference-dropzone" :class="{ 'is-dragging': referenceDragActive }" @dragover.prevent="referenceDragActive = true" @dragleave.prevent="referenceDragActive = false" @drop.prevent="handleReferenceDrop($event)">
-                            <input x-ref="referenceFileInput" type="file" class="visually-hidden" accept="image/jpeg,image/png,image/webp" @change="selectReferenceFile($event)">
+                            <input x-ref="referenceFileInput" type="file" class="visually-hidden" accept="image/jpeg,image/png,image/webp" aria-label="Choose reference photo" @change="selectReferenceFile($event)">
                             <span class="reference-dropzone-label">Add a reference photo</span>
                             <button type="button" class="button button--light button--small" :disabled="!hasImage" @click="chooseReferenceFile()">Choose Reference</button>
                             <span class="reference-dropzone-meta">JPG, PNG or WebP · stays in this browser</span>
@@ -364,7 +364,7 @@
 
         <nav class="mobile-tool-nav" aria-label="Mobile editing tools">
             <template x-for="tool in tools" :key="`mobile-${tool.id}`">
-                <button class="mobile-tool-item" type="button" :class="{ 'is-active': activeTool === tool.id }" @click="activateTool(tool.id)">
+                <button class="mobile-tool-item" type="button" :class="{ 'is-active': activeTool === tool.id }" :aria-current="activeTool === tool.id ? 'page' : undefined" @click="activateTool(tool.id)">
                     <i :data-lucide="tool.icon" aria-hidden="true"></i><span x-text="tool.label"></span>
                 </button>
             </template>

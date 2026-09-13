@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">Pancarona</title>
+    <desc id="desc">A multicolor aperture mark</desc>
+    <defs>
+        <linearGradient id="spectrum" x1="10" y1="52" x2="54" y2="12" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#e58b76" />
+            <stop offset="0.28" stop-color="#e6bd72" />
+            <stop offset="0.55" stop-color="#8dbca5" />
+            <stop offset="0.8" stop-color="#8ca8d4" />
+            <stop offset="1" stop-color="#c59bc8" />
+        </linearGradient>
+    </defs>
+    <rect width="64" height="64" rx="12" fill="#1a1a19" />
+    <circle cx="32" cy="32" r="19" fill="none" stroke="url(#spectrum)" stroke-width="8" stroke-dasharray="88 32" stroke-linecap="round" transform="rotate(-42 32 32)" />
+    <circle cx="32" cy="32" r="6" fill="#f4f0e8" />
+</svg>

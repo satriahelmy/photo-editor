@@ -1,8 +1,8 @@
-# Photo Editor — Product Requirements Document
+# Pancarona — Product Requirements Document
 
 **Version:** 1.0  
 **Status:** V1 / MVP  
-**Working Name:** Photo Editor  
+**Working Name:** Pancarona
 **Platform:** Web  
 **Backend:** Laravel  
 **Primary Experience:** Browser-based photo editing
@@ -11,7 +11,7 @@
 
 # 1. Product Overview
 
-Photo Editor adalah aplikasi editing foto berbasis web yang berfokus pada pengalaman editing sederhana, cepat, dan berkualitas tinggi, terutama untuk kebutuhan **color grading**.
+Pancarona adalah aplikasi editing foto berbasis web yang berfokus pada pengalaman editing sederhana, cepat, dan berkualitas tinggi, terutama untuk kebutuhan **color grading**.
 
 Produk mengambil inspirasi dari workflow aplikasi photo editing modern seperti VSCO, tetapi tidak bertujuan menjadi clone maupun menggantikan aplikasi editing profesional seperti Adobe Lightroom atau Photoshop.
 

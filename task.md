@@ -1,4 +1,4 @@
-# Photo Editor — Implementation Checklist
+# Pancarona — Implementation Checklist
 
 Checklist ini diturunkan dari `prd.md` dan `design.md`. Urutan mengikuti dependency teknis: rendering pipeline harus stabil sebelum fitur grading lanjutan dan `Match Reference` dibangun.
 

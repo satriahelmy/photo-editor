@@ -1,14 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Photo Editor — Beautiful color grading')
+@section('title', 'Pancarona — Beautiful color grading')
+@section('description', 'Pancarona is a local-first photo editor for beautiful color grading and reference matching.')
 @section('body-class', 'site-body')
 
 @section('content')
     <div class="site-shell" x-data="{ mobileMenu: false }">
         <header class="site-header page-width">
-            <a href="{{ route('home') }}" class="brand" aria-label="Photo Editor home">
-                <span class="brand-mark" aria-hidden="true">PE</span>
-                <span>Photo Editor</span>
+            <a href="{{ route('home') }}" class="brand" aria-label="Pancarona home">
+                <span class="brand-mark" aria-hidden="true"><img src="{{ asset('pancarona-mark.svg') }}" alt=""></span>
+                <span>Pancarona</span>
             </a>
 
             <nav class="site-nav" :class="{ 'is-open': mobileMenu }" aria-label="Main navigation">
@@ -35,9 +36,9 @@
                     </div>
                 </div>
 
-                <div class="hero-preview" aria-label="Photo Editor workspace preview">
+                <div class="hero-preview" aria-label="Pancarona workspace preview">
                     <div class="preview-toolbar">
-                        <span class="preview-brand"><span class="brand-mark brand-mark--small" aria-hidden="true">PE</span> Photo Editor</span>
+                        <span class="preview-brand"><span class="brand-mark brand-mark--small" aria-hidden="true"><img src="{{ asset('pancarona-mark.svg') }}" alt=""></span> Pancarona</span>
                         <span class="preview-actions"><i data-lucide="undo-2" aria-hidden="true"></i><i data-lucide="redo-2" aria-hidden="true"></i><span class="preview-export">Export</span></span>
                     </div>
                     <div class="preview-body">
@@ -96,7 +97,7 @@
                         <p class="eyebrow">Match Reference</p>
                         <h2>Start with a feeling you already like.</h2>
                     </div>
-                    <p>Use another photo as a visual source. Photo Editor reads its tonal and color character, then gives you an editable starting point.</p>
+                    <p>Use another photo as a visual source. Pancarona reads its tonal and color character, then gives you an editable starting point.</p>
                 </div>
 
                 <div class="match-story">
@@ -150,7 +151,7 @@
         </main>
 
         <footer class="site-footer page-width">
-            <a href="{{ route('home') }}" class="brand"><span class="brand-mark" aria-hidden="true">PE</span><span>Photo Editor</span></a>
+            <a href="{{ route('home') }}" class="brand"><span class="brand-mark" aria-hidden="true"><img src="{{ asset('pancarona-mark.svg') }}" alt=""></span><span>Pancarona</span></a>
             <p>Simple tools for thoughtful color.</p>
         </footer>
     </div>

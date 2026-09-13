@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Editor — Photo Editor')
+@section('title', 'Editor — Pancarona')
+@section('description', 'Edit photos locally with Pancarona.')
 @section('body-class', 'editor-body')
 
 @section('content')
@@ -8,7 +9,7 @@
         <header class="editor-topbar">
             <div class="editor-brand-group">
                 <a href="{{ route('home') }}" class="editor-back" aria-label="Back to home"><i data-lucide="arrow-left" aria-hidden="true"></i></a>
-                <a href="{{ route('home') }}" class="brand brand--editor"><span class="brand-mark" aria-hidden="true">PE</span><span class="editor-brand-name">Photo Editor</span></a>
+                <a href="{{ route('home') }}" class="brand brand--editor"><span class="brand-mark" aria-hidden="true"><img src="{{ asset('pancarona-mark.svg') }}" alt=""></span><span class="editor-brand-name">Pancarona</span></a>
             </div>
             <div class="editor-status"><span class="status-dot" :class="{ 'is-ready': hasImage }"></span><span x-text="hasImage ? 'Ready to edit' : 'No photo selected'"></span></div>
             <div class="editor-actions">

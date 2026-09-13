@@ -1,7 +1,7 @@
-# Photo Editor — Design Specification
+# Pancarona — Design Specification
 
 **Version:** 1.0  
-**Product:** Photo Editor  
+**Product:** Pancarona
 **Status:** V1  
 **Companion Document:** `prd.md`
 
@@ -9,7 +9,7 @@
 
 # 1. Design Objective
 
-Photo Editor harus terasa seperti sebuah **serious photography tool yang sederhana**, bukan dashboard SaaS, landing page AI, atau generic Tailwind application.
+Pancarona harus terasa seperti sebuah **serious photography tool yang sederhana**, bukan dashboard SaaS, landing page AI, atau generic Tailwind application.
 
 Visual direction:
 

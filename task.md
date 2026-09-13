@@ -260,7 +260,7 @@ Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail
 - [x] Pastikan export tidak menambahkan watermark atau metadata yang tidak diperlukan; canvas export hanya berisi pixel hasil edit.
 - [x] Download file dengan extension dan MIME type yang benar.
 - [x] Beri error yang direct jika full-resolution export gagal atau browser tidak mendukung format tertentu.
-- [ ] Uji output pada image portrait, landscape, square, transparency, resolusi besar, serta semua format.
+- [x] Uji output pada image portrait, landscape, square, transparency, resolusi besar, serta semua format.
 
 ### M5 decision log — 2026-09-12
 
@@ -310,7 +310,8 @@ Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail
 - [x] Inspeksi file download aktual portrait JPG dan square WebP di folder Downloads; MIME/dimensi terbaca `image/jpeg` `720×1080` dan `image/webp` `900×900`.
 - [x] Verifikasi fixture dimensi ekstrem ditolak dengan error dimensi yang direct.
 - [x] Audit breakpoint responsive `900px`/`700px`, mobile bottom navigation, panel split image/control, export bottom sheet, dan reduced-motion secara statis.
-- [ ] Verifikasi file PNG transparan benar-benar tersimpan di Downloads dan inspeksi MIME alpha; export action menutup modal tanpa error, tetapi file PNG tidak terdeteksi oleh in-app browser harness.
+- [x] Smoke test langsung pada viewport desktop default: load image, pindah ke Presets, zoom, dan audit console tanpa error.
+- [x] Verifikasi file PNG transparan tersimpan di Downloads; MIME `image/png`, dimensi `640×480`, dan sample alpha transparan tetap terdeteksi.
 - [ ] Jalankan viewport fisik desktop/tablet/mobile dan touch matrix; API viewport override tidak tersedia pada browser harness saat QA ini.
 
 ### M6 decision log — 2026-09-12

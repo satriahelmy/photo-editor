@@ -267,6 +267,9 @@ window.editorShell = () => ({
     displayValue(control) {
         return formatAdjustmentValue(this.controlValue(control), control.precision);
     },
+    formatAdjustmentValue(value, precision = 0) {
+        return formatAdjustmentValue(value, precision);
+    },
     sectionHasEdits(section) {
         return this.controlsForSection(section).some((control) => this.controlValue(control) !== 0);
     },

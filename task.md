@@ -283,6 +283,7 @@ Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail
 ### Automated verification
 
 - [x] Uji schema edit state, serialisasi/deserialisasi, copy snapshot, HSL/crop transfer, dan batas dimensi.
+- [x] Uji kontrak export canvas untuk MIME PNG/JPEG, quality, dan flattening JPEG.
 - [x] Jalankan regression test engine, production build, PHP test, view cache, formatter, dan diff check.
 - [ ] Verifikasi network secara manual di browser untuk memastikan workflow target/reference tetap local-only.
 
@@ -296,8 +297,21 @@ Decision: Copy Edit menyimpan snapshot parameter adjustment, HSL, effects/detail
 
 - [x] Buka `/editor`, load foto editorial landscape, dan pastikan modal Export menampilkan dimensi Original yang benar.
 - [x] Uji selector JPG, PNG, dan WebP serta konfirmasi PNG lossless dan quality control untuk format yang mendukung quality.
-- [x] Uji output label Instagram Square `1080 × 1080` dari target landscape.
-- [ ] Lengkapi matrix manual untuk portrait, square, transparansi, resolusi besar, serta hasil download aktual tiap format.
+- [x] Uji output label Instagram Portrait `1080 × 1350`, Square `1080 × 1080`, dan Story `1080 × 1920` dari target landscape.
+- [x] Jalankan E2E smoke upload → preset → crop → frame → export action tanpa export error.
+- [x] Jalankan E2E smoke target → reference → Match → intensity → Fine-tune → export action tanpa export error.
+- [x] Uji keyboard toggle section, Arrow/Home/End slider, Escape dialog, dan focus kembali ke trigger.
+- [x] Audit console error pada fresh `/editor`; perbaiki Alpine expression `formatAdjustmentValue` yang sebelumnya memunculkan `ReferenceError`.
+- [x] Audit console error pada fresh `/` landing page; tidak ada error runtime.
+- [x] Audit static network call sites; tidak ada `fetch`, XHR upload, FormData, multipart, atau axios request untuk image.
+- [x] Buat fixture QA lokal untuk portrait `720×1080`, square `900×900`, transparansi `640×480`, dan dimensi ekstrem `12001×1` di `tests/fixtures/`.
+- [x] Verifikasi browser import portrait, square, dan transparansi; metadata dimensi tampil sesuai source.
+- [x] Verifikasi browser export action untuk fixture portrait (JPG), square (WebP), dan transparansi (PNG) tanpa error; PNG menampilkan mode lossless.
+- [x] Inspeksi file download aktual portrait JPG dan square WebP di folder Downloads; MIME/dimensi terbaca `image/jpeg` `720×1080` dan `image/webp` `900×900`.
+- [x] Verifikasi fixture dimensi ekstrem ditolak dengan error dimensi yang direct.
+- [x] Audit breakpoint responsive `900px`/`700px`, mobile bottom navigation, panel split image/control, export bottom sheet, dan reduced-motion secara statis.
+- [ ] Verifikasi file PNG transparan benar-benar tersimpan di Downloads dan inspeksi MIME alpha; export action menutup modal tanpa error, tetapi file PNG tidak terdeteksi oleh in-app browser harness.
+- [ ] Jalankan viewport fisik desktop/tablet/mobile dan touch matrix; API viewport override tidak tersedia pada browser harness saat QA ini.
 
 ### M6 decision log — 2026-09-12
 

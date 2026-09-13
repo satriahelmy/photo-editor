@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     BUILT_IN_PRESETS,
+    canvasToBlob,
     DEFAULT_CROP,
     DEFAULT_FRAME,
     DEFAULT_ADJUSTMENTS,
@@ -178,5 +179,68 @@ compositionState.crop = squareCrop;
 compositionState.frame = { style: 'white', size: 12, ratio: '4:5' };
 assert.equal(editStatesEqual(compositionState, createDefaultEditState()), false, 'composition parameters must participate in edit equality');
 assert.deepEqual(DEFAULT_FRAME, { style: 'none', size: 0, ratio: 'original' });
+
+const previousDocument = globalThis.document;
+let pngRequest = null;
+const pngCanvas = {
+    toBlob(callback, mimeType, quality) {
+        pngRequest = { mimeType, quality };
+        callback(new Blob(['png'], { type: mimeType }));
+    },
+};
+
+try {
+    globalThis.document = {
+        createElement() {
+            return {
+                width: 0,
+                height: 0,
+                getContext() {
+                    return {
+                        fillStyle: '',
+                        fillRect() {},
+                        drawImage() {},
+                    };
+                },
+                toBlob(callback, mimeType, quality) {
+                    callback(new Blob(['jpeg'], { type: mimeType }));
+                    this.lastRequest = { mimeType, quality };
+                },
+            };
+        },
+    };
+
+    const pngBlob = await canvasToBlob(pngCanvas, 'image/png', 0.42);
+    assert.equal(pngBlob.type, 'image/png', 'PNG export must preserve MIME type');
+    assert.deepEqual(pngRequest, { mimeType: 'image/png', quality: undefined }, 'PNG export must ignore quality');
+
+    let jpegCanvas = null;
+    globalThis.document.createElement = () => {
+        jpegCanvas = {
+            width: 0,
+            height: 0,
+            getContext() {
+                return {
+                    fillStyle: '',
+                    fillRect() {},
+                    drawImage() {},
+                };
+            },
+            toBlob(callback, mimeType, quality) {
+                this.lastRequest = { mimeType, quality };
+                callback(new Blob(['jpeg'], { type: mimeType }));
+            },
+        };
+
+        return jpegCanvas;
+    };
+
+    const jpegBlob = await canvasToBlob({ width: 20, height: 10, toBlob() { throw new Error('source canvas must not encode JPEG directly'); } }, 'image/jpeg', 0.72);
+    assert.equal(jpegBlob.type, 'image/jpeg', 'JPEG export must return JPEG MIME type');
+    assert.deepEqual(jpegCanvas.lastRequest, { mimeType: 'image/jpeg', quality: 0.72 }, 'JPEG export must pass normalized quality');
+} finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+}
 
 console.log('image-engine tests passed');
